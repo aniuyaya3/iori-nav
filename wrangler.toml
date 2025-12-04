@@ -1,0 +1,19 @@
+name = "iori-nav"
+compatibility_date = "2025-12-04"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "NAV_DB"
+database_name = "book"
+database_id = "867a3b31-4194-4824-9457-4182925b48a2"
+
+[[kv_namespaces]]
+binding = "NAV_AUTH"
+id = "20915f0393f7435e853696803273dd63"
+
+[vars]
+ICON_API = "https://icon.iori.nyc.mn/?domain="
+ENABLE_PUBLIC_SUBMISSION = false
+SITE_NAME = "IORI"
+SITE_DESCRIPTION = "从效率工具到灵感站点,我们亲自挑选、亲手标注,只为帮助你更快找到值得信赖的优质资源。"
+FOOTER_TEXT = "曾梦想仗剑走天涯"

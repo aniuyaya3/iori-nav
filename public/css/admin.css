@@ -1,0 +1,714 @@
+body {
+  font-family: "Noto Sans SC", sans-serif;
+  margin: 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 768px) {
+  .admin-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0;
+  color: #343a40;
+}
+.admin-subtitle {
+  margin: 4px 0 0;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+.logout-btn {
+  background-color: #f8f9fa;
+  color: #495057;
+  border: 1px solid #ced4da;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.logout-btn:hover {
+  background-color: #e9ecef;
+  color: #212529;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.tab-wrapper {
+  margin-top: 20px;
+}
+.tab-buttons {
+  display: flex;
+  margin-bottom: 10px;
+  flex-wrap: wrap; /* [优化] 移动端换行 */
+}
+.tab-button {
+  background-color: #e9ecef;
+  border: 1px solid #dee2e6;
+  padding: 10px 15px;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  color: #495057; /* tab按钮文字颜色 */
+  transition: background-color 0.2s, color 0.2s;
+}
+.tab-button.active {
+  background-color: #fff;
+  border-bottom: 1px solid #fff;
+  color: #212529; /* 选中tab颜色 */
+}
+.tab-button:hover {
+  background-color: #f0f0f0;
+}
+.tab-content {
+  display: none;
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  border-top: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+.import-export {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: space-between; /* 修改：两端对齐 */
+  align-items: center; /* 新增：垂直居中 */
+  flex-wrap: wrap; /* [优化] 移动端换行 */
+}
+
+#searchInput {
+  flex-grow: 1; /* 占据多余空间 */
+  max-width: 300px; /* 设置一个最大宽度 */
+  margin-right: auto; /* 将右侧的元素推开 */
+}
+
+/* [优化] 添加区域适配移动端 */
+.add-new {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap; /* 核心：允许换行 */
+}
+.add-new > input {
+  flex: 1 1 150px; /* 弹性布局，基础宽度150px，允许伸缩 */
+  min-width: 150px; /* 最小宽度 */
+}
+.add-new > button {
+  flex-basis: 100%; /* 在移动端，按钮占据一整行 */
+}
+input[type="text"] {
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+  margin-bottom: 5px;
+  transition: border-color 0.2s;
+}
+@media (min-width: 768px) {
+  .add-new > button {
+    flex-basis: auto; /* 在桌面端，按钮恢复自动宽度 */
+  }
+}
+input[type="text"],
+input[type="number"] {
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+  margin-bottom: 5px;
+  transition: border-color 0.2s;
+}
+input[type="text"]:focus,
+input[type="number"]:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+button {
+  background-color: #6c63ff; /* 主色调 */
+  color: #fff;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+button:hover {
+  background-color: #534dc4;
+}
+/* [优化] 保证表格在小屏幕上可以横向滚动 */
+.table-wrapper {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  table-layout: fixed; /* 新增：固定表格布局，使列宽不受内容影响 */
+}
+th,
+td {
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  text-align: left;
+  color: #495057; /* 表格文字颜色 */
+  word-wrap: break-word; /* 强制长单词或URL换行 */
+  overflow-wrap: break-word; /* word-wrap的现代标准名称 */
+}
+th {
+  background-color: #f2f2f2;
+  font-weight: 600;
+}
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+.category-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.category-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+#refreshCategories {
+  background-color: #f8f9fa;
+  color: #495057;
+  border: 1px solid #ced4da;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+#refreshCategories:hover {
+  background-color: #e9ecef;
+}
+.category-sort-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+.category-sort-input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none;
+}
+.category-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.category-actions button {
+  padding: 5px 10px;
+  font-size: 0.85rem;
+}
+.category-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  gap: 5px;
+}
+.actions button {
+  padding: 5px 8px;
+  font-size: 0.8rem;
+}
+.edit-btn {
+  background-color: #17a2b8; /* 编辑按钮颜色 */
+}
+
+.del-btn {
+  background-color: #dc3545; /* 删除按钮颜色 */
+}
+.pagination {
+  text-align: center;
+  margin-top: 20px;
+}
+.pagination button {
+  margin: 0 5px;
+  background-color: #e9ecef; /* 分页按钮颜色 */
+  color: #495057;
+  border: 1px solid #ced4da;
+}
+.pagination button:hover {
+  background-color: #dee2e6;
+}
+
+.success {
+  background-color: #28a745;
+  color: #fff;
+}
+.error {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid #dee2e6;
+  width: 80%;
+  max-width: 600px;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.modal-close {
+  color: #6c757d;
+  position: absolute;
+  right: 10px;
+  top: 0;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+  color: #343a40;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group {
+  display: flex;           /* 启用 Flexbox 布局 */
+  align-items: center;     /* 垂直居中对齐 */
+  margin-bottom: 15px;     /* 每行之间的间距 */
+}
+
+.modal-content form .form-group label {
+  width: 120px;             /* 给 label 一个固定宽度，保证上下两行对齐 */
+  margin-bottom: 0;        /* 覆盖原来的 margin-bottom */
+  margin-right: 10px;      /* label 和 input 之间的间距 */
+  text-align: right;       /* 可选：让文字靠右对齐看起来更整齐 */
+  flex-shrink: 0;          /* 防止 label 被压缩 */
+}
+
+/* 修改：让 input 填满剩余空间 */
+.modal-content form .form-group input {
+  flex: 1;                 /* input 自动占满剩余宽度 */
+  margin-bottom: 0;        /* 覆盖原来的 margin-bottom */
+  width: auto;             /* 重置宽度 */
+}
+
+.modal-content form label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.modal-content form input {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal-content form input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.modal-content button[type='submit'] {
+  margin-top: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.modal-content button[type='submit']:hover {
+  background-color: #0056b3;
+}
+
+.custom-select {
+  /* 1. 去除浏览器默认样式（最关键的一步） */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  /* 2. 基础样式设置 */
+  width: 100%;                /* 宽度填满容器 */
+  padding: 10px 15px;         /* 内边距 */
+  padding-right: 40px;        /* 右侧留出更多空间给箭头，防止文字覆盖 */
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #495057;
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  
+  /* 3. 自定义箭头图标 (使用 SVG Data URI) */
+  /* 这是一个灰色的向下箭头 */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center; /* 箭头位置：靠右 10px，垂直居中 */
+  background-size: 16px 12px;             /* 箭头大小 */
+
+  /* 4. 过渡动画 */
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+/* 聚焦时的样式（与你之前的 input 保持一致） */
+.custom-select:focus {
+  border-color: #80bdff;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* 禁用状态 */
+.custom-select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+
+
+/* AI 设置模态框样式 */
+#aiSettingsBtn {
+  background-color: #28a745; /* 绿色，表示 AI 或智能操作 */
+}
+
+#aiSettingsBtn:hover {
+  background-color: #218838;
+}
+
+.modal-content .radio-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.modal-content .radio-group input[type="radio"] {
+  width: auto;
+  margin-bottom: 0;
+}
+
+.modal-content .radio-group label {
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
+.batch-operations {
+  margin-top: 20px;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+}
+
+.batch-operations h3 {
+  margin-top: 0;
+}
+
+.batch-operations p {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+#batchCompleteDescBtn {
+  width: 100%;
+  margin-top: 10px;
+  background-color: #007bff;
+}
+
+#batchCompleteDescBtn:hover {
+  background-color: #0056b3;
+}
+
+/* =================================== */
+/* 新版 AI 设置模态框样式 (Settings Modal) */
+/* =================================== */
+
+.settings-modal .modal-content-wrapper {
+  background-color: #fff;
+  margin: 5% auto;
+  padding: 0;
+  border: 1px solid #dee2e6;
+  width: 90%;
+  max-width: 550px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.settings-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.settings-modal .modal-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-modal .modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+.settings-modal .modal-close-btn:hover {
+  color: #343a40;
+}
+
+.settings-modal .modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  space-y: 1.5rem;
+}
+
+.settings-modal .form-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.settings-modal .provider-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.settings-modal .provider-btn {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  background-color: #f8f9fa;
+  color: #495057;
+  transition: all 0.2s;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-modal .provider-btn:hover {
+  border-color: #adb5bd;
+}
+
+.settings-modal .provider-btn.active {
+  border-color: #007bff;
+  background-color: #e7f1ff;
+  color: #0056b3;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.settings-modal .form-group-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.settings-modal .form-label-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 0.25rem;
+}
+
+.settings-modal .form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  background-color: #fff;
+  font-size: 1rem;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.settings-modal .form-input:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.settings-modal .form-hint {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.settings-modal .batch-actions-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.settings-modal .section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.settings-modal .bulk-action-box {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.settings-modal .progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.settings-modal .progress-bar-container {
+  width: 100%;
+  background-color: #e9ecef;
+  border-radius: 99px;
+  height: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.settings-modal .progress-bar {
+  background-color: #007bff;
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.settings-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f8f9fa;
+  flex-shrink: 0;
+}
+
+.settings-modal .button-primary,
+.settings-modal .button-secondary,
+.settings-modal .button-tertiary,
+.settings-modal .button-danger {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.settings-modal .button-primary {
+  background-color: #007bff;
+  color: white;
+}
+.settings-modal .button-primary:hover {
+  background-color: #0056b3;
+}
+
+.settings-modal .button-secondary {
+  width: 100%;
+  justify-content: center;
+  background-color: #fff;
+  color: #495057;
+  border-color: #ced4da;
+}
+.settings-modal .button-secondary:hover {
+  background-color: #f8f9fa;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.settings-modal .button-tertiary {
+  background-color: #e9ecef;
+  color: #495057;
+}
+.settings-modal .button-tertiary:hover {
+  background-color: #dee2e6;
+}
+
+.settings-modal .button-danger {
+  width: 100%;
+  justify-content: center;
+  background-color: #fbebee;
+  color: #dc3545;
+  border-color: #f5c6cb;
+}
+.settings-modal .button-danger:hover {
+  background-color: #f8d7da;
+}

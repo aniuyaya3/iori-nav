@@ -1,0 +1,104 @@
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #edf1f7;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c3d0e3;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #416d9d;
+}
+
+/* 卡片悬停效果 */
+.site-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.site-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* 复制成功提示动画 */
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(10px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+.copy-success-animation {
+  animation: fadeInOut 2s ease forwards;
+}
+
+/* 移动端侧边栏 */
+@media (max-width: 768px) {
+  .mobile-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .mobile-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .mobile-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  
+  .mobile-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* 多行文本截断 */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 侧边栏控制 */
+#sidebar-toggle {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  #sidebar-toggle:checked ~ .sidebar {
+    margin-left: -16rem;
+  }
+  
+  #sidebar-toggle:checked ~ .main-content {
+    margin-left: 0;
+  }
+}
+
+/* 根据 submission_enabled 控制按钮显示 */
+[data-submission="false"] #addSiteBtnSidebar {
+  display: none;
+}
+
+[data-submission="false"]::after {
+  content: "访客书签提交功能已关闭";
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: #416d9d;
+  background-color: white;
+  border: 1px solid #f6ede1;
+  border-radius: 0.5rem;
+}

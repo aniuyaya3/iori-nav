@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>书签管理页面</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header class="admin-header">
+        <div>
+          <h1>书签管理</h1>
+          <p class="admin-subtitle">
+            管理后台仅限受信任的管理员使用，请妥善保管账号
+          </p>
+        </div>
+        <form method="post" action="/admin/logout">
+          <button type="submit" class="logout-btn">退出登录</button>
+        </form>
+      </header>
+
+      <div class="import-export">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="搜索书签(名称, URL, 分类)"
+        />
+        <input
+          type="file"
+          id="importFile"
+          accept=".json,.html,.htm"
+          style="display: none"
+        />
+        <button id="importBtn">导入</button>
+        <button id="exportBtn">导出</button>
+        <button id="addCategoryBtn">新增分类</button>
+        <button id="addBookmarkBtn">新增书签</button>
+        <button id="aiSettingsBtn">AI 设置</button>
+      </div>
+
+      <!-- 新增分类模态框 -->
+      <div id="addCategoryModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="modal-close" id="closeCategoryModal">×</span>
+          <h2>新增分类</h2>
+          <form id="addCategoryForm">
+            <label for="newCategoryName">分类名称:</label>
+            <input type="text" id="newCategoryName" required /><br />
+            <label for="newCategorySortOrder">排序值(可选,默认9999):</label>
+            <input
+              type="number"
+              id="newCategorySortOrder"
+              placeholder="9999"
+            /><br />
+            <button type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 新增书签模态框 -->
+      <div id="addBookmarkModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="modal-close" id="closeBookmarkModal">×</span>
+          <h2>新增书签</h2>
+          <form id="addBookmarkForm">
+            <div class="form-group">
+              <label for="addBookmarkName">名称:</label>
+              <input type="text" id="addBookmarkName" required />
+            </div>
+            <div class="form-group">
+              <label for="addBookmarkUrl">URL:</label>
+              <input type="text" id="addBookmarkUrl" required />
+            </div>
+            <div class="form-group">
+              <label for="addBookmarkLogo">Logo(可选):</label>
+              <input type="text" id="addBookmarkLogo" placeholder="默认自动根据url获取"/>
+            </div>
+            <div class="form-group">
+              <label for="addBookmarkDesc">描述(可选):</label>
+              <input type="text" id="addBookmarkDesc" />
+            </div>
+            <div class="form-group">
+              <label for="addBookmarkCatelog">分类:</label>
+              <select id="addBookmarkCatelog" class="custom-select" required ></select>
+            </div>
+            <div class="form-group">
+              <label for="addBookmarkSortOrder">排序值(可选):</label>
+              <input
+                type="number"
+                id="addBookmarkSortOrder"
+                placeholder="9999"
+              />
+            </div>
+
+            <button type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 编辑书签模态框 -->
+      <div id="editBookmarkModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="modal-close" id="closeEditBookmarkModal">×</span>
+          <h2>编辑书签</h2>
+          <form id="editBookmarkForm">
+            <input type="hidden" name="id" id="editBookmarkId" />
+            <div class="form-group">
+              <label for="editBookmarkName">名称:</label>
+              <input type="text" name="name" id="editBookmarkName" required />
+            </div>
+            <div class="form-group">
+              <label for="editBookmarkUrl">URL:</label>
+              <input type="text" name="url" id="editBookmarkUrl" required />
+            </div>
+            <div class="form-group">
+              <label for="editBookmarkLogo">Logo(可选):</label>
+              <input type="text" name="logo" id="editBookmarkLogo" placeholder="默认自动根据url获取"/>
+            </div>
+            <div class="form-group">
+              <label for="editBookmarkDesc">描述(可选):</label>
+              <input type="text" name="desc" id="editBookmarkDesc" />
+            </div>
+            <div class="form-group">
+              <label for="editBookmarkCatelog">分类:</label>
+              <select id="editBookmarkCatelog" name="catelog_id" class="custom-select" required ></select>
+            </div>
+            <div class="form-group">
+              <label for="editBookmarkSortOrder">排序值(可选):</label>
+              <input
+                type="number"
+                name="sort_order"
+                id="editBookmarkSortOrder"
+                placeholder="9999"
+              />
+            </div>
+
+            <button type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 编辑分类模态框 -->
+      <div id="editCategoryModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="modal-close" id="closeEditCategoryModal">×</span>
+          <h2>编辑分类</h2>
+          <form id="editCategoryForm">
+            <input type="hidden" name="id" id="editCategoryId" />
+            <label for="editCategoryName">分类名称:</label>
+            <input type="text" id="editCategoryName" required /><br />
+            <label for="editCategorySortOrder">排序值(可选):</label>
+            <input type="number" id="editCategorySortOrder" /><br />
+            <button type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+      <!-- AI 设置模态框 -->
+      <div id="aiSettingsModal" class="modal settings-modal" style="display: none;">
+        <div class="modal-content-wrapper">
+          <div class="modal-header">
+            <h3 class="modal-title"><span>🤖</span> AI 设置</h3>
+            <button id="closeAiSettingsModal" class="modal-close-btn">×</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- AI 设置内容 -->
+            <div>
+              <label class="form-label">API 提供商</label>
+              <div class="provider-selector">
+                <button data-provider="gemini" class="provider-btn active">Google Gemini</button>
+                <button data-provider="openai" class="provider-btn">OpenAI 兼容</button>
+              </div>
+            </div>
+
+            <div class="form-group-stack">
+              <div>
+                <label for="apiKey" class="form-label-icon"><span>🔑</span> API Key</label>
+                <input type="password" id="apiKey" placeholder="sk-..." class="form-input">
+              </div>
+
+              <div id="baseUrlGroup" style="display: none;">
+                <label for="baseUrl" class="form-label-icon"><span>🌍</span> Base URL (API 地址)</label>
+                <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1" class="form-input">
+                <p class="form-hint">例如: https://api.deepseek.com/v1 (不需要加 /chat/completions)</p>
+              </div>
+
+              <div>
+                <label for="modelName" class="form-label-icon"><span>✨</span> 模型名称</label>
+                <input type="text" id="modelName" placeholder="gemini-1.5-flash" class="form-input">
+              </div>
+            </div>
+
+            <div class="batch-actions-section" style="margin-top: 1rem;">
+              <div id="bulkGenerateIdle" class="bulk-action-box">
+                <p class="form-hint">自动扫描所有没有描述的链接，并调用上方配置的 AI 模型生成简介。</p>
+                <button id="batchCompleteDescBtn" class="button-secondary">
+                  <span>✨</span> 一键补全所有描述
+                </button>
+              </div>
+              <div id="bulkGenerateProgress" class="bulk-action-box" style="display: none;">
+                <div class="progress-info">
+                  <span>正在生成描述...</span>
+                  <span id="progressCounter">0 / 0</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <button id="stopBulkGenerateBtn" class="button-danger">
+                  <span>⏸️</span> 停止处理
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button id="cancelAiSettingsBtn" class="button-tertiary">取消</button>
+            <button id="saveAiSettingsBtn" class="button-primary"><span>💾</span> 保存设置</button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          margin-bottom: 1rem;
+        "
+      ></div>
+
+      <div class="tab-wrapper">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="config">书签列表</button>
+          <button class="tab-button" data-tab="pending">待审核列表</button>
+          <button class="tab-button" data-tab="categories">分类列表</button>
+        </div>
+
+        <div id="config" class="tab-content active">
+          <div class="table-wrapper">
+            <table id="configTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>URL</th>
+                  <th>Logo</th>
+                  <th>Description</th>
+                  <th>Catelog</th>
+                  <th>排序</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="configTableBody">
+                <!-- data render by js -->
+              </tbody>
+            </table>
+            <div class="pagination">
+              <button id="prevPage" disabled>上一页</button>
+              <span id="currentPage">1</span>/<span id="totalPages">1</span>
+              <button id="nextPage" disabled>下一页</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="pending" class="tab-content">
+          <div class="table-wrapper">
+            <table id="pendingTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>URL</th>
+                  <th>Logo</th>
+                  <th>Description</th>
+                  <th>Catelog</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pendingTableBody">
+                <!-- data render by js -->
+              </tbody>
+            </table>
+            <div class="pagination">
+              <button id="pendingPrevPage" disabled>上一页</button>
+              <span id="pendingCurrentPage">1</span>/<span
+                id="pendingTotalPages"
+                >1</span
+              >
+              <button id="pendingNextPage" disabled>下一页</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="categories" class="tab-content">
+          <div class="table-wrapper">
+            <div class="category-toolbar">
+              <p class="category-hint">
+                设置分类排序值（数字越小越靠前），留空表示使用默认顺序。
+              </p>
+              <button id="refreshCategories" type="button">刷新</button>
+            </div>
+            <table id="categoryTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>分类</th>
+                  <th>书签数量</th>
+                  <th>排序值</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="categoryTableBody">
+                <tr>
+                  <td colspan="4">加载中...</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <button id="categoryPrevPage" disabled>上一页</button>
+              <span id="categoryCurrentPage">1</span>/<span id="categoryTotalPages">1</span>
+              <button id="categoryNextPage" disabled>下一页</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+  </body>
+</html>
