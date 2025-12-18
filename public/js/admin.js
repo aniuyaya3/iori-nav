@@ -96,19 +96,13 @@ if (pageSizeSelect) {
 
 // Initialize Category Filter
 if (categoryFilter) {
-  // Populate categories will happen in fetchCategoriesForFilter or similar
-  // Re-use the existing logic or add a new fetch
-  fetch('/api/categories?pageSize=999')
+  fetch('/api/categories?pageSize=10000')
     .then(res => res.json())
     .then(data => {
       if (data.code === 200 && data.data) {
-        // Keep the default "All" option
-        data.data.forEach(cat => {
-          const option = document.createElement('option');
-          option.value = cat.catelog; // Use name for filtering as API expects name or ID? API index.js uses name if provided as 'catalog' param
-          option.textContent = cat.catelog;
-          categoryFilter.appendChild(option);
-        });
+        categoriesData = data.data;
+        categoriesTree = buildCategoryTree(categoriesData);
+        createCascadingDropdown('categoryFilterWrapper', 'categoryFilter', categoriesTree);
       }
     });
 
@@ -232,11 +226,14 @@ function createCascadingDropdown(containerId, inputId, categoriesTree, initialVa
     const input = document.getElementById(inputId);
     if (!container || !input) return;
     
+    // Determine context (Filter vs Parent Selection)
+    const isFilter = inputId === 'categoryFilter';
+
     // Find initial label
     let initialLabel = '请选择分类';
     const findLabel = (nodes, id) => {
         for (const node of nodes) {
-            if (node.id == id) return node.catelog;
+            if (String(node.id) === String(id)) return node.catelog;
             if (node.children) {
                 const found = findLabel(node.children, id);
                 if (found) return found;
@@ -246,12 +243,21 @@ function createCascadingDropdown(containerId, inputId, categoriesTree, initialVa
     };
     
     if (initialValue && initialValue != '0') {
-        const label = findLabel(categoriesTree, initialValue);
-        if (label) initialLabel = label;
-        input.value = initialValue;
-    } else if (initialValue == '0') {
+        // If isFilter, initialValue is likely a name, not ID.
+        if (isFilter) {
+             initialLabel = initialValue;
+             input.value = initialValue;
+        } else {
+            const label = findLabel(categoriesTree, initialValue);
+            if (label) initialLabel = label;
+            input.value = initialValue;
+        }
+    } else if (initialValue == '0' && !isFilter) {
         initialLabel = '无 (顶级分类)';
         input.value = '0';
+    } else if (isFilter && !initialValue) {
+        initialLabel = '所有分类';
+        input.value = '';
     } else {
         input.value = '';
     }
@@ -281,6 +287,21 @@ function createCascadingDropdown(containerId, inputId, categoriesTree, initialVa
         });
         menu.appendChild(rootItem);
     }
+    
+    // "All Categories" for Filter
+    if (isFilter) {
+        const rootItem = document.createElement('div');
+        rootItem.className = 'custom-dropdown-item';
+        rootItem.innerHTML = '<span class="font-medium text-gray-900">所有分类</span>';
+        rootItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            input.value = '';
+            trigger.textContent = '所有分类';
+            menu.classList.remove('show');
+            input.dispatchEvent(new Event('change'));
+        });
+        menu.appendChild(rootItem);
+    }
 
     // Flatten logic
     const renderItems = (nodes, depth = 0) => {
@@ -306,7 +327,11 @@ function createCascadingDropdown(containerId, inputId, categoriesTree, initialVa
             // Click Event (Select)
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                input.value = node.id;
+                if (isFilter) {
+                    input.value = node.catelog; // Filter uses Name
+                } else {
+                    input.value = node.id; // Others use ID
+                }
                 trigger.textContent = node.catelog;
                 menu.classList.remove('show');
                 input.dispatchEvent(new Event('change'));
@@ -788,6 +813,91 @@ function deleteCategory(id, isSub = false) {
             showMessage(data.message || '删除失败', 'error');
         }
     });
+}
+
+function setupCategoryDragAndDrop() {
+  const cards = document.querySelectorAll('#categoryGrid .site-card');
+  let draggedItem = null;
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', function (e) {
+      draggedItem = this;
+      this.classList.add('opacity-50', 'scale-95');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+    });
+
+    card.addEventListener('dragend', function () {
+      this.classList.remove('opacity-50', 'scale-95');
+      draggedItem = null;
+      document.querySelectorAll('#categoryGrid .site-card').forEach(c => c.classList.remove('border-2', 'border-accent-500'));
+    });
+
+    card.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.classList.add('border-2', 'border-accent-500');
+    });
+
+    card.addEventListener('dragleave', function () {
+      this.classList.remove('border-2', 'border-accent-500');
+    });
+
+    card.addEventListener('drop', function (e) {
+      e.preventDefault();
+      this.classList.remove('border-2', 'border-accent-500');
+
+      if (draggedItem !== this) {
+        const allCards = Array.from(categoryGrid.children);
+        const draggedIdx = allCards.indexOf(draggedItem);
+        const droppedIdx = allCards.indexOf(this);
+
+        if (draggedIdx < droppedIdx) {
+          this.after(draggedItem);
+        } else {
+          this.before(draggedItem);
+        }
+
+        saveCategorySortOrder();
+      }
+    });
+  });
+}
+
+function saveCategorySortOrder() {
+  const cards = document.querySelectorAll('#categoryGrid .site-card');
+  const updates = [];
+
+  cards.forEach((card, index) => {
+    const id = card.dataset.id;
+    const newSortOrder = index + 1;
+    const category = categoriesData.find(c => c.id == id);
+    if (!category) return;
+
+    updates.push(fetch(`/api/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...category,
+        sort_order: newSortOrder
+      })
+    }));
+  });
+
+  if (updates.length > 0) {
+    showMessage('正在保存分类排序...', 'info');
+    Promise.all(updates)
+      .then(() => {
+          showMessage('分类排序已保存', 'success');
+          // Update local state
+          cards.forEach((card, index) => {
+              const id = card.dataset.id;
+              const cat = categoriesData.find(c => c.id == id);
+              if(cat) cat.sort_order = index + 1;
+          });
+      })
+      .catch(err => showMessage('保存排序失败: ' + err.message, 'error'));
+  }
 }
 
 // Close Sub Modal
