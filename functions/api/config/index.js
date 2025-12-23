@@ -121,6 +121,13 @@ export async function onRequestPost(context) {
     if (!sanitizedName || !sanitizedUrl || !catelogId) {
       return errorResponse('Name, URL and Catelog are required', 400);
     }
+
+    // Check if URL already exists
+    const existingSite = await env.NAV_DB.prepare('SELECT id FROM sites WHERE url = ?').bind(sanitizedUrl).first();
+    if (existingSite) {
+        return errorResponse('该 URL 已存在，请勿重复添加', 409);
+    }
+
     if(!logo && url){
       if(url.startsWith('https://') || url.startsWith('http://')){
         const domain = url.replace(/^https?:\/\//, '').split('/')[0];

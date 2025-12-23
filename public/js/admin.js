@@ -167,21 +167,55 @@ if (importFile) {
           let previewData = { category: [], sites: [] };
 
           if (Array.isArray(data)) {
-              // Old format
+              // Old format: Array of sites
+              // Convert to New Format Structure for consistent preview and backend handling
               previewData.sites = data;
-              // Extract categories naively for preview if possible, or just leave empty
-              // showImportPreview expects category array for tree.
-              // If empty, items might fall into root or mapped by ID? 
-              // Old format uses 'catelog' name. showImportPreview builds tree from IDs.
-              // So old format preview might be broken in tree view but stats will be fine.
-              // Let's wrap it simply.
+              
+              const catMap = new Map();
+              let tempId = 10000; // Start high to avoid potential conflicts visually, though arbitrary
+              
+              // 1. Extract unique categories
+              data.forEach(site => {
+                  const catName = (site.catelog || '默认分类').trim();
+                  if (!catMap.has(catName)) {
+                      catMap.set(catName, {
+                          id: tempId++,
+                          catelog: catName,
+                          parent_id: 0,
+                          sort_order: 9999
+                      });
+                  }
+              });
+              
+              previewData.category = Array.from(catMap.values());
+              
+              // 2. Map sites to these temporary category IDs
+              previewData.sites = data.map(site => {
+                  const catName = (site.catelog || '默认分类').trim();
+                  return {
+                      ...site,
+                      catelog_id: catMap.get(catName).id
+                  };
+              });
+              
           } else if (data.category && data.sites) {
               // New format
               previewData = data;
+              // Normalize parent_id to 0 if null, and ensure numbers
+              previewData.category = previewData.category.map(c => ({
+                  ...c,
+                  id: Number(c.id),
+                  parent_id: c.parent_id ? Number(c.parent_id) : 0
+              }));
+              previewData.sites = previewData.sites.map(s => ({
+                  ...s,
+                  catelog_id: Number(s.catelog_id)
+              }));
           }
 
           showImportPreview(previewData);
         } catch (error) {
+          console.error(error);
           showMessage('JSON 文件解析失败: ' + error.message, 'error');
         }
       };
