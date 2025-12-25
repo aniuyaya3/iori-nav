@@ -1328,8 +1328,8 @@ const themeColorMeta = `
 `;
 
 const viewportMeta = `
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`;
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+`;
 
 html = html.replace('</head>', `${viewportMeta}${themeColorMeta}${globalScrollCss}</head>`);
 
@@ -1340,13 +1340,8 @@ html = html.replace(
    ${bgLayerHtml}
    <div id="app-scroll">`
 );
-  
-html = html.replace(
-  /<div id="app-scroll">/,
-  `<div id="app-scroll"><div id="app-content">`
-);
 
-html = html.replace('</body>', '</div></div></body>');
+html = html.replace('</body>', '</div></body>');
   
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
