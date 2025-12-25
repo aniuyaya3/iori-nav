@@ -1283,49 +1283,51 @@ if (safeWallpaperUrl) {
 
 const globalScrollCss = `
 <style>
-  html {
+html {
   min-height: 100%;
   overflow-y: auto;
 }
 
 body {
   margin: 0;
-  min-height: 100svh;
+  min-height: 100%;
   overflow-y: auto;
   background: transparent;
   -webkit-overflow-scrolling: touch;
 }
 
-/* 固定背景 */
+/* ===== iOS SAFARI 背景终极方案 ===== */
 #fixed-background {
   position: fixed;
-  inset: 0;
+  top: -500px;
+  left: -500px;
+  right: -500px;
+  bottom: -500px;
+
   z-index: -1;
   pointer-events: none;
   overflow: hidden;
+
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 #fixed-background img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 #fixed-background.no-wallpaper {
   background: #fdf8f3;
 }
-
-  #fixed-background img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  }
 </style>
 `;
 
 html = html.replace('</head>', `${globalScrollCss}</head>`);
 
+/* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
   /<body([^>]*)>/i,
   `<body$1 class="font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
