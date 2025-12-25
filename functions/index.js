@@ -1283,41 +1283,38 @@ if (safeWallpaperUrl) {
 
 const globalScrollCss = `
 <style>
-  html {
-    height: auto;
-    min-height: 100%;
-    overflow-y: auto;
-    background-color: ${safeWallpaperUrl ? '#000' : defaultBgColor};
-  }
+html {
+  min-height: 100%;
+  overflow-y: auto;
+}
 
-  body {
-    margin: 0;
-    min-height: 100svh;
-    overflow-y: auto;
-    background: transparent;
-    position: relative;
-    -webkit-overflow-scrolling: touch;
-  }
+body {
+  margin: 0;
+  min-height: 100svh;
+  overflow-y: auto;
+  background: transparent;
+  -webkit-overflow-scrolling: touch;
+}
 
-  /* === 固定背景层（不参与布局）=== */
-  #fixed-background {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    overflow: hidden;
-    pointer-events: none;
-  }
+/* 固定背景 */
+#fixed-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
 
-  #fixed-background.no-wallpaper {
-    background-color: ${defaultBgColor};
-  }
+#fixed-background img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
-  #fixed-background img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  }
+#fixed-background.no-wallpaper {
+  background: #fdf8f3;
+}
+
 </style>
 `;
 
@@ -1326,9 +1323,10 @@ html = html.replace('</head>', `${globalScrollCss}</head>`);
 /* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
   '<body class="bg-secondary-50 font-sans text-gray-800">',
-  `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+  `<body class="body class="font-sans text-gray-800 dark:text-gray-100 relative''}">
    ${bgLayerHtml}`
 );
+
   
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
