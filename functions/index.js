@@ -1318,6 +1318,10 @@ html, body {
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
 `;
@@ -1327,7 +1331,12 @@ const themeColorMeta = `
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 `;
 
-html = html.replace('</head>', `${themeColorMeta}${globalScrollCss}</head>`);
+const viewportMeta = `
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+`;
+
+html = html.replace('</head>', `${viewportMeta}${themeColorMeta}${globalScrollCss}</head>`);
+
 /* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
   /<body([^>]*)>/i,
