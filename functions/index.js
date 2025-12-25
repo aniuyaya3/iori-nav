@@ -1283,18 +1283,15 @@ if (safeWallpaperUrl) {
 
 const globalScrollCss = `
 <style>
-const globalScrollCss = `
-<style>
-/* ===== 根节点：彻底锁死 ===== */
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;           /* 🔒 强硬关键 */
+  overflow: hidden;
   background: transparent;
 }
 
-/* ===== 固定背景（SunPanel 同款） ===== */
+/* 固定背景 */
 #fixed-background {
   position: fixed;
   inset: 0;
@@ -1315,7 +1312,7 @@ html, body {
   background: #fdf8f3;
 }
 
-/* ===== 唯一滚动容器 ===== */
+/* 唯一滚动容器 */
 #app-scroll {
   position: relative;
   height: 100%;
@@ -1334,7 +1331,7 @@ html = html.replace(
    ${bgLayerHtml}
    <div id="app-scroll">`
 );
-
+html = html.replace('</body>', '</div></body>');
   
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
