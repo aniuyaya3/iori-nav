@@ -1263,17 +1263,56 @@ export async function onRequest(context) {
   const defaultBgColor = '#fdf8f3';
   
   // 统一构建背景层逻辑
-  let bgLayerStyle = '';
-  if (safeWallpaperUrl) {
-      const blurStyle = layoutEnableBgBlur ? `filter: blur(${layoutBgBlurIntensity}px);` : '';
-      bgLayerStyle = `background-image: url('${safeWallpaperUrl}'); background-size: cover; background-position: center; ${blurStyle}`;
-  } else {
-      bgLayerStyle = `background-color: ${defaultBgColor};`;
-  }
-  
-  // 使用 transform 开启硬件加速，扩大范围至 -300px 以应对强力回弹
-  const bgLayerHtml = `<div id="fixed-background" style="position: fixed; top: -300px; left: -300px; right: -300px; bottom: -300px; z-index: -9999; ${bgLayerStyle} pointer-events: none; transform: translateZ(0); will-change: transform;"></div>`;
-  
+  let bgLayerHtml = '';
+
+if (safeWallpaperUrl) {
+    const blurStyle = layoutEnableBgBlur
+        ? `filter: blur(${layoutBgBlurIntensity}px);`
+        : '';
+
+    bgLayerHtml = `
+      <div id="fixed-background"
+           style="
+             position: fixed;
+             top: -300px;
+             left: -300px;
+             right: -300px;
+             bottom: -300px;
+             z-index: -9999;
+             overflow: hidden;
+             pointer-events: none;
+             transform: translateZ(0);
+             will-change: transform;
+           ">
+        <img
+          src="${safeWallpaperUrl}"
+          alt=""
+          style="
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            ${blurStyle}
+          "
+        />
+      </div>
+    `;
+} else {
+    bgLayerHtml = `
+      <div id="fixed-background"
+           style="
+             position: fixed;
+             top: -300px;
+             left: -300px;
+             right: -300px;
+             bottom: -300px;
+             z-index: -9999;
+             background-color: ${defaultBgColor};
+             pointer-events: none;
+           ">
+      </div>
+    `;
+}
   // 注入全局样式：
   // 1. html, body 禁止回弹
   // 2. body 背景透明 (依靠 fixed div)
