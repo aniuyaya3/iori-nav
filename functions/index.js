@@ -1283,20 +1283,18 @@ if (safeWallpaperUrl) {
 
 const globalScrollCss = `
 <style>
-html {
-  min-height: 100%;
-  overflow-y: auto;
-}
-
-body {
+const globalScrollCss = `
+<style>
+/* ===== 根节点：彻底锁死 ===== */
+html, body {
   margin: 0;
-  min-height: 100svh;
-  overflow-y: auto;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;           /* 🔒 强硬关键 */
   background: transparent;
-  -webkit-overflow-scrolling: touch;
 }
 
-/* 固定背景 */
+/* ===== 固定背景（SunPanel 同款） ===== */
 #fixed-background {
   position: fixed;
   inset: 0;
@@ -1309,12 +1307,21 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  transform: translateZ(0);
 }
 
 #fixed-background.no-wallpaper {
   background: #fdf8f3;
 }
 
+/* ===== 唯一滚动容器 ===== */
+#app-scroll {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 </style>
 `;
 
@@ -1322,9 +1329,10 @@ html = html.replace('</head>', `${globalScrollCss}</head>`);
 
 /* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
-  '<body class="bg-secondary-50 font-sans text-gray-800">',
-  `<body class="body class="font-sans text-gray-800 dark:text-gray-100 relative''}">
-   ${bgLayerHtml}`
+  /<body([^>]*)>/i,
+  `<body$1 class="font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+   ${bgLayerHtml}
+   <div id="app-scroll">`
 );
 
   
