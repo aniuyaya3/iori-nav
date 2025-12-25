@@ -1340,13 +1340,9 @@ html = html.replace(
    ${bgLayerHtml}
    <div id="app-scroll">`
 );
-  
-html = html.replace(
-  /<div id="app-scroll">/,
-  `<div id="app-scroll"><div id="app-content">`
-);
 
-html = html.replace('</body>', '</div></div></body>');
+html = html.replace('</body>', '</div></body>');
+  
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
   const frostedBlurRaw = String(layoutFrostedGlassIntensity || '15').replace(/[^0-9]/g, '');
