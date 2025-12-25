@@ -1263,81 +1263,83 @@ export async function onRequest(context) {
   const defaultBgColor = '#fdf8f3';
   
   // 统一构建背景层逻辑
-  let bgLayerHtml = '';
+let bgLayerHtml = '';
 
 if (safeWallpaperUrl) {
-    const blurStyle = layoutEnableBgBlur
-        ? `filter: blur(${layoutBgBlurIntensity}px);`
-        : '';
+  const blurStyle = layoutEnableBgBlur
+    ? `filter: blur(${layoutBgBlurIntensity}px);`
+    : '';
 
-    bgLayerHtml = `
-      <div id="fixed-background"
-           style="
-             position: fixed;
-             top: -300px;
-             left: -300px;
-             right: -300px;
-             bottom: -300px;
-             z-index: -9999;
-             overflow: hidden;
-             pointer-events: none;
-             transform: translateZ(0);
-             will-change: transform;
-           ">
-        <img
-          src="${safeWallpaperUrl}"
-          alt=""
-          style="
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            ${blurStyle}
-          "
-        />
-      </div>
-    `;
-} else {
-    bgLayerHtml = `
-      <div id="fixed-background"
-           style="
-             position: fixed;
-             top: -300px;
-             left: -300px;
-             right: -300px;
-             bottom: -300px;
-             z-index: -9999;
-             background-color: ${defaultBgColor};
-             pointer-events: none;
-           ">
-      </div>
-    `;
-}
-  // 注入全局样式：
-  // 1. html, body 禁止回弹
-  // 2. body 背景透明 (依靠 fixed div)
-  // 3. html 设置底色保险 (有壁纸时用黑色避免白边，无壁纸时用默认色)
-  const globalScrollCss = `
-    <style>
-      html {
-        overscroll-behavior: none;
-        background-color: ${safeWallpaperUrl ? '#000000' : defaultBgColor};
-        height: 100%;
-      }
-      body {
-        overscroll-behavior: none;
-        background-color: transparent !important;
-        min-height: 100%;
-        position: relative;
-      }
-    </style>
+  bgLayerHtml = `
+    <div id="fixed-background">
+      <img
+        src="${safeWallpaperUrl}"
+        alt=""
+        style="${blurStyle}"
+      />
+    </div>
   `;
+} else {
+  bgLayerHtml = `
+    <div id="fixed-background" class="no-wallpaper"></div>
+  `;
+}
 
-  html = html.replace('</head>', `${globalScrollCss}</head>`);
-  
-  // 替换 body 标签
-  html = html.replace('<body class="bg-secondary-50 font-sans text-gray-800">', `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">${bgLayerHtml}`);
-  
+const globalScrollCss = `
+<style>
+  html {
+    overscroll-behavior: none;
+    background-color: ${safeWallpaperUrl ? '#000000' : defaultBgColor};
+    height: 100%;
+  }
+
+  body {
+    overscroll-behavior: none;
+    background-color: transparent !important;
+    min-height: 100%;
+    position: relative;
+  }
+
+  #fixed-background {
+    position: fixed;
+    inset: -300px;
+    z-index: -9999;
+    overflow: hidden;
+    pointer-events: none;
+    height: 100svh;
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  #fixed-background.no-wallpaper {
+    background-color: ${defaultBgColor};
+  }
+
+  #fixed-background img {
+    width: 100%;
+    height: calc(100svh + 600px);
+    object-fit: cover;
+    object-position: center;
+  }
+
+  @supports not (height: 100svh) {
+    #fixed-background {
+      height: 100vh;
+    }
+    #fixed-background img {
+      height: calc(100vh + 600px);
+    }
+  }
+</style>
+`;
+
+html = html.replace('</head>', `${globalScrollCss}</head>`);
+
+html = html.replace(
+  '<body class="bg-secondary-50 font-sans text-gray-800">',
+  `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+   ${bgLayerHtml}`
+);
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
   const frostedBlurRaw = String(layoutFrostedGlassIntensity || '15').replace(/[^0-9]/g, '');
