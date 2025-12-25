@@ -1309,7 +1309,7 @@ html, body {
 }
 
 #fixed-background.no-wallpaper {
-  background: #fdf8f3;
+  background: #000000;
 }
 
 /* 唯一滚动容器 */
