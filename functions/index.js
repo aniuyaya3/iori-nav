@@ -1284,32 +1284,28 @@ if (safeWallpaperUrl) {
 const globalScrollCss = `
 <style>
   html {
-    overscroll-behavior: none;
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
     background-color: ${safeWallpaperUrl ? '#000' : defaultBgColor};
-    height: 100%;
   }
 
   body {
-    overscroll-behavior: none;
-    background-color: transparent !important;
-    min-height: 100%;
+    margin: 0;
+    min-height: 100svh;
+    overflow-y: auto;
+    background: transparent;
     position: relative;
+    -webkit-overflow-scrolling: touch;
   }
 
-  /* === 核心：永远铺满的背景层 === */
+  /* === 固定背景层（不参与布局）=== */
   #fixed-background {
     position: fixed;
-    top: -500px;
-    left: -500px;
-    right: -500px;
-    bottom: -500px;
-
-    z-index: -9999;
+    inset: 0;
+    z-index: -1;
     overflow: hidden;
     pointer-events: none;
-
-    transform: translateZ(0);
-    will-change: transform;
   }
 
   #fixed-background.no-wallpaper {
