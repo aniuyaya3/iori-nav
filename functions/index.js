@@ -1327,8 +1327,8 @@ body {
 html = html.replace('</head>', `${globalScrollCss}</head>`);
 
 html = html.replace(
-  '<body class="bg-secondary-50 font-sans text-gray-800">',
-  `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+  /<body([^>]*)>/i,
+  `<body$1 class="font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
    ${bgLayerHtml}`
 );
   
