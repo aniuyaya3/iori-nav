@@ -1285,7 +1285,7 @@ const globalScrollCss = `
 <style>
   html {
     overscroll-behavior: none;
-    background-color: ${safeWallpaperUrl ? '#000000' : defaultBgColor};
+    background-color: ${safeWallpaperUrl ? '#000' : defaultBgColor};
     height: 100%;
   }
 
@@ -1296,15 +1296,17 @@ const globalScrollCss = `
     position: relative;
   }
 
+  /* === 核心：永远铺满的背景层 === */
   #fixed-background {
     position: fixed;
-    inset: -300px;
+    top: -500px;
+    left: -500px;
+    right: -500px;
+    bottom: -500px;
+
     z-index: -9999;
     overflow: hidden;
     pointer-events: none;
-
-    /* 关键：用 lvh，永远覆盖最大可视高度 */
-    height: 100lvh;
 
     transform: translateZ(0);
     will-change: transform;
@@ -1316,19 +1318,9 @@ const globalScrollCss = `
 
   #fixed-background img {
     width: 100%;
-    height: calc(100lvh + 600px);
+    height: 100%;
     object-fit: cover;
     object-position: center;
-  }
-
-  /* 旧 iOS 兜底 */
-  @supports not (height: 100lvh) {
-    #fixed-background {
-      height: 100vh;
-    }
-    #fixed-background img {
-      height: calc(100vh + 600px);
-    }
   }
 </style>
 `;
@@ -1340,6 +1332,7 @@ html = html.replace(
   `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
    ${bgLayerHtml}`
 );
+  
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
   const frostedBlurRaw = String(layoutFrostedGlassIntensity || '15').replace(/[^0-9]/g, '');
