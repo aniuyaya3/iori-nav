@@ -1283,44 +1283,41 @@ if (safeWallpaperUrl) {
 
 const globalScrollCss = `
 <style>
-html {
-  height: auto;
-  min-height: 100%;
-  overflow-y: auto;
-}
+  html {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+    background-color: ${safeWallpaperUrl ? '#000' : defaultBgColor};
+  }
 
-body {
-  margin: 0;
-  min-height: 100%;
-  overflow-y: auto;
-  background: transparent !important;
-  -webkit-overflow-scrolling: touch;
-}
+  body {
+    margin: 0;
+    min-height: 100svh;
+    overflow-y: auto;
+    background: transparent;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
 
-/* ===== 稳定型 fixed 背景（不对抗 Safari） ===== */
-#fixed-background {
-  position: fixed;
-  top: -300px;
-  left: -300px;
-  right: -300px;
-  bottom: -300px;
+  /* === 固定背景层（不参与布局）=== */
+  #fixed-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
 
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-}
+  #fixed-background.no-wallpaper {
+    background-color: ${defaultBgColor};
+  }
 
-#fixed-background img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  transform: translateZ(0);
-}
-
-#fixed-background.no-wallpaper {
-  background: #fdf8f3;
-}
+  #fixed-background img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
 </style>
 `;
 
@@ -1328,8 +1325,8 @@ html = html.replace('</head>', `${globalScrollCss}</head>`);
 
 /* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
-  /<body([^>]*)>/i,
-  `<body$1 class="font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+  '<body class="bg-secondary-50 font-sans text-gray-800">',
+  `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
    ${bgLayerHtml}`
 );
   
