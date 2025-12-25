@@ -1284,6 +1284,7 @@ if (safeWallpaperUrl) {
 const globalScrollCss = `
 <style>
 html {
+  height: auto;
   min-height: 100%;
   overflow-y: auto;
 }
@@ -1292,24 +1293,21 @@ body {
   margin: 0;
   min-height: 100%;
   overflow-y: auto;
-  background: transparent;
+  background: transparent !important;
   -webkit-overflow-scrolling: touch;
 }
 
-/* ===== iOS SAFARI 背景终极方案 ===== */
+/* ===== 稳定型 fixed 背景（不对抗 Safari） ===== */
 #fixed-background {
   position: fixed;
-  top: -500px;
-  left: -500px;
-  right: -500px;
-  bottom: -500px;
+  top: -300px;
+  left: -300px;
+  right: -300px;
+  bottom: -300px;
 
   z-index: -1;
   pointer-events: none;
   overflow: hidden;
-
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 #fixed-background img {
@@ -1317,6 +1315,7 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
+  transform: translateZ(0);
 }
 
 #fixed-background.no-wallpaper {
