@@ -1272,11 +1272,7 @@ if (safeWallpaperUrl) {
 
   bgLayerHtml = `
     <div id="fixed-background">
-      <img
-        src="${safeWallpaperUrl}"
-        alt=""
-        style="${blurStyle}"
-      />
+      <img src="${safeWallpaperUrl}" alt="" style="${blurStyle}" />
     </div>
   `;
 } else {
@@ -1306,7 +1302,10 @@ const globalScrollCss = `
     z-index: -9999;
     overflow: hidden;
     pointer-events: none;
-    height: 100svh;
+
+    /* 关键：用 lvh，永远覆盖最大可视高度 */
+    height: 100lvh;
+
     transform: translateZ(0);
     will-change: transform;
   }
@@ -1317,12 +1316,13 @@ const globalScrollCss = `
 
   #fixed-background img {
     width: 100%;
-    height: calc(100svh + 600px);
+    height: calc(100lvh + 600px);
     object-fit: cover;
     object-position: center;
   }
 
-  @supports not (height: 100svh) {
+  /* 旧 iOS 兜底 */
+  @supports not (height: 100lvh) {
     #fixed-background {
       height: 100vh;
     }
