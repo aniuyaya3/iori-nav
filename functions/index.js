@@ -1321,9 +1321,13 @@ html, body {
 }
 </style>
 `;
+  
+const themeColorMeta = `
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+`;
 
-html = html.replace('</head>', `${globalScrollCss}</head>`);
-
+html = html.replace('</head>', `${themeColorMeta}${globalScrollCss}</head>`);
 /* 用正则稳妥替换 body，并插入背景层 */
 html = html.replace(
   /<body([^>]*)>/i,
