@@ -1318,10 +1318,6 @@ html, body {
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
 `;
@@ -1344,8 +1340,13 @@ html = html.replace(
    ${bgLayerHtml}
    <div id="app-scroll">`
 );
-html = html.replace('</body>', '</div></body>');
   
+html = html.replace(
+  /<div id="app-scroll">/,
+  `<div id="app-scroll"><div id="app-content">`
+);
+
+html = html.replace('</body>', '</div></div></body>');
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
   const frostedBlurRaw = String(layoutFrostedGlassIntensity || '15').replace(/[^0-9]/g, '');
