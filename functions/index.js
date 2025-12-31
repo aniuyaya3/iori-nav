@@ -1284,62 +1284,84 @@ export async function onRequest(context) {
   
   // 统一构建背景层逻辑 - 采用 img 标签方案以解决移动端缩放问题
   let bgLayerHtml = '';
-  
-  if (safeWallpaperUrl) {
-      const blurStyle = layoutEnableBgBlur ? `filter: blur(${layoutBgBlurIntensity}px); transform: scale(1.02);` : '';
-      // transform: scale(1.02) 是为了防止模糊后边缘出现白边
-      
-      bgLayerHtml = `
-        <div id="fixed-background" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -9999; pointer-events: none; overflow: hidden;">
-          <img src="${safeWallpaperUrl}" alt="" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}" />
-        </div>
-      `;
-  } else {
-      bgLayerHtml = `
-        <div id="fixed-background" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -9999; pointer-events: none; background-color: ${defaultBgColor};"></div>
-      `;
-  }
-  
-  // 注入全局样式
-  const globalScrollCss = `
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden; /* 关键：禁止 body 滚动，交由内部容器接管 */
-      }
-      #app-scroll {
-        width: 100%;
-        height: 100%;
-        overflow-y: auto; /* 允许纵向滚动 */
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch; /* iOS 原生惯性滚动 */
-      }
-      body {
-        background-color: transparent !important;
-      }
-      #fixed-background {
-        /* 仅对必要的属性进行平滑过渡 */
-        transition: background-color 0.3s ease, filter 0.3s ease;
-      }
-      /* 修复 iOS 上 100vh 问题 (针对背景层) */
-      @supports (-webkit-touch-callout: none) {
-        #fixed-background {
-          height: -webkit-fill-available;
-        }
-      }
-    </style>
-  `;
 
-  html = html.replace('</head>', `${globalScrollCss}</head>`);
+if (safeWallpaperUrl) {
+  const blurStyle = layoutEnableBgBlur
+    ? `filter: blur(${layoutBgBlurIntensity}px);`
+    : '';
+
+  bgLayerHtml = `
+    <div id="fixed-background">
+      <img src="${safeWallpaperUrl}" alt="" style="${blurStyle}" />
+    </div>
+  `;
+} else {
+  bgLayerHtml = `
+    <div id="fixed-background" class="no-wallpaper"></div>
+  `;
+}
+
+const globalScrollCss = `
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* 固定背景 */
+#fixed-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#fixed-background img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: translateZ(0);
+}
+
+#fixed-background.no-wallpaper {
+  background: #000000;
+}
+
+/* 唯一滚动容器 */
+#app-scroll {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+</style>
+`;
   
-  // 替换 body 标签结构，增加 #app-scroll 滚动容器
-  html = html.replace('<body class="bg-secondary-50 font-sans text-gray-800">', `<body class="bg-secondary-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">${bgLayerHtml}<div id="app-scroll">`);
-  
-  // 闭合滚动容器
-  html = html.replace('</body>', '</div></body>');
+const themeColorMeta = `
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+`;
+
+const viewportMeta = `
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+`;
+
+html = html.replace('</head>', `${viewportMeta}${themeColorMeta}${globalScrollCss}</head>`);
+
+/* 用正则稳妥替换 body，并插入背景层 */
+html = html.replace(
+  /<body([^>]*)>/i,
+  `<body$1 class="font-sans text-gray-800 dark:text-gray-100 relative ${isCustomWallpaper ? 'custom-wallpaper' : ''}">
+   ${bgLayerHtml}
+   <div id="app-scroll">`
+);
+
+html = html.replace('</body>', '</div></body>');
   
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
