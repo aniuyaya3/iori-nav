@@ -58,73 +58,133 @@ function normalizeSortOrder(val) {
   return Number.isFinite(num) ? num : 9999;
 }
 
-let indexesChecked = false;
+// Schema 迁移版本号 - 修改此值会触发重新迁移
+const SCHEMA_VERSION = 'v2';
+
+// 内存缓存：热状态下跳过 KV 读取，只有冷启动时才查 KV
+let schemaMigrated = false;
+
+async function ensureSchema(env) {
+  // 热状态直接返回，不读 KV
+  if (schemaMigrated) return;
+
+  // 冷启动时检查 KV 中是否已完成迁移
+  const migrated = await env.NAV_AUTH.get(`schema_migrated_${SCHEMA_VERSION}`);
+  if (migrated) {
+    schemaMigrated = true;  // 更新内存缓存
+    return;
+  }
+
+  try {
+    // 批量执行所有索引创建（减少数据库往返）
+    await env.NAV_DB.batch([
+      env.NAV_DB.prepare("CREATE INDEX IF NOT EXISTS idx_sites_catelog_id ON sites(catelog_id)"),
+      env.NAV_DB.prepare("CREATE INDEX IF NOT EXISTS idx_sites_sort_order ON sites(sort_order)")
+    ]);
+
+    // 检查并添加缺失的列（使用 PRAGMA 更高效）
+    const sitesColumns = await env.NAV_DB.prepare("PRAGMA table_info(sites)").all();
+    const sitesCols = new Set(sitesColumns.results.map(c => c.name));
+    
+    const categoryColumns = await env.NAV_DB.prepare("PRAGMA table_info(category)").all();
+    const categoryCols = new Set(categoryColumns.results.map(c => c.name));
+    
+    const pendingColumns = await env.NAV_DB.prepare("PRAGMA table_info(pending_sites)").all();
+    const pendingCols = new Set(pendingColumns.results.map(c => c.name));
+
+    const alterStatements = [];
+    
+    if (!sitesCols.has('is_private')) {
+      alterStatements.push(env.NAV_DB.prepare("ALTER TABLE sites ADD COLUMN is_private INTEGER DEFAULT 0"));
+    }
+    if (!sitesCols.has('catelog_name')) {
+      alterStatements.push(env.NAV_DB.prepare("ALTER TABLE sites ADD COLUMN catelog_name TEXT"));
+    }
+    if (!pendingCols.has('catelog_name')) {
+      alterStatements.push(env.NAV_DB.prepare("ALTER TABLE pending_sites ADD COLUMN catelog_name TEXT"));
+    }
+    if (!categoryCols.has('is_private')) {
+      alterStatements.push(env.NAV_DB.prepare("ALTER TABLE category ADD COLUMN is_private INTEGER DEFAULT 0"));
+    }
+    if (!categoryCols.has('parent_id')) {
+      alterStatements.push(env.NAV_DB.prepare("ALTER TABLE category ADD COLUMN parent_id INTEGER DEFAULT 0"));
+    }
+
+    if (alterStatements.length > 0) {
+      // SQLite 不支持批量 ALTER，需要逐个执行
+      for (const stmt of alterStatements) {
+        try { await stmt.run(); } catch (e) { console.log('Column may already exist:', e.message); }
+      }
+      
+      // 同步 catelog_name 数据（仅在添加字段后执行一次）
+      if (!sitesCols.has('catelog_name')) {
+        await env.NAV_DB.prepare(`
+          UPDATE sites 
+          SET catelog_name = (SELECT catelog FROM category WHERE category.id = sites.catelog_id) 
+          WHERE catelog_name IS NULL
+        `).run();
+      }
+    }
+
+    // 标记迁移完成（缓存 30 天）
+    await env.NAV_AUTH.put(`schema_migrated_${SCHEMA_VERSION}`, 'true', { expirationTtl: 2592000 });
+    schemaMigrated = true;  // 更新内存缓存
+    console.log('Schema migration completed');
+  } catch (e) {
+    console.error('Schema migration failed:', e);
+  }
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
-  console.log("indexesChecked:",indexesChecked)
-  if (!indexesChecked) {
-    try {
-      await env.NAV_DB.batch([
-        env.NAV_DB.prepare("CREATE INDEX IF NOT EXISTS idx_sites_catelog_id ON sites(catelog_id)"),
-        env.NAV_DB.prepare("CREATE INDEX IF NOT EXISTS idx_sites_sort_order ON sites(sort_order)")
-      ]);
-      
-      try {
-          await env.NAV_DB.prepare("SELECT is_private FROM sites LIMIT 1").first();
-      } catch (e) {
-          await env.NAV_DB.prepare("ALTER TABLE sites ADD COLUMN is_private INTEGER DEFAULT 0").run();
-      }
-
-      try {
-          await env.NAV_DB.prepare("SELECT catelog_name FROM sites LIMIT 1").first();
-      } catch (e) {
-          await env.NAV_DB.prepare("ALTER TABLE sites ADD COLUMN catelog_name TEXT").run();
-          // 仅在首次添加字段时，从 category 表一次性同步旧数据
-          await env.NAV_DB.prepare(`
-            UPDATE sites 
-            SET catelog_name = (SELECT catelog FROM category WHERE category.id = sites.catelog_id) 
-            WHERE catelog_name IS NULL
-          `).run();
-      }
-
-      try {
-          await env.NAV_DB.prepare("SELECT catelog_name FROM pending_sites LIMIT 1").first();
-      } catch (e) {
-          await env.NAV_DB.prepare("ALTER TABLE pending_sites ADD COLUMN catelog_name TEXT").run();
-      }
-
-      try {
-          await env.NAV_DB.prepare("SELECT is_private FROM category LIMIT 1").first();
-      } catch (e) {
-          try {
-             await env.NAV_DB.prepare("ALTER TABLE category ADD COLUMN is_private INTEGER DEFAULT 0").run();
-          } catch(e2) {
-             console.error('Failed to add is_private to category', e2);
-          }
-      }
-
-      indexesChecked = true;
-    } catch (e) {
-      console.error('Failed to ensure indexes or columns:', e);
-    }
-  }
+  
+  // 使用 KV 缓存 Schema 迁移状态，避免每次冷启动都检查
+  await ensureSchema(env);
 
   const isAuthenticated = await isAdminAuthenticated(request, env);
   const includePrivate = isAuthenticated ? 1 : 0;
 
-  // 1. 获取所有分类
-  let categories = [];
-  try {
-    let query = 'SELECT * FROM category';
-    if (!isAuthenticated) {
-        query += ' WHERE is_private = 0';
-    }
-    query += ' ORDER BY sort_order ASC, id ASC';
-    const { results } = await env.NAV_DB.prepare(query).all();
-    categories = results || [];
-  } catch (e) {
-    console.error('Failed to fetch categories:', e);
+  // 并行执行数据库查询（分类、设置、站点）
+  const categoryQuery = isAuthenticated 
+    ? 'SELECT * FROM category ORDER BY sort_order ASC, id ASC'
+    : 'SELECT * FROM category WHERE is_private = 0 ORDER BY sort_order ASC, id ASC';
+  
+  const settingsKeys = [
+    'layout_hide_desc', 'layout_hide_links', 'layout_hide_category',
+    'layout_hide_title', 'home_title_size', 'home_title_color',
+    'layout_hide_subtitle', 'home_subtitle_size', 'home_subtitle_color',
+    'home_hide_stats', 'home_stats_size', 'home_stats_color',
+    'home_hide_hitokoto', 'home_hitokoto_size', 'home_hitokoto_color',
+    'home_hide_github', 'home_hide_admin',
+    'home_custom_font_url', 'home_title_font', 'home_subtitle_font', 'home_stats_font', 'home_hitokoto_font',
+    'home_site_name', 'home_site_description',
+    'home_search_engine_enabled', 'home_default_category', 'home_remember_last_category',
+    'layout_grid_cols', 'layout_custom_wallpaper', 'layout_menu_layout',
+    'layout_random_wallpaper', 'bing_country',
+    'layout_enable_frosted_glass', 'layout_frosted_glass_intensity',
+    'layout_enable_bg_blur', 'layout_bg_blur_intensity', 'layout_card_style',
+    'layout_card_border_radius',
+    'wallpaper_source', 'wallpaper_cid_360',
+    'card_title_font', 'card_title_size', 'card_title_color',
+    'card_desc_font', 'card_desc_size', 'card_desc_color'
+  ];
+  const settingsPlaceholders = settingsKeys.map(() => '?').join(',');
+
+  const sitesQuery = `SELECT id, name, url, logo, desc, catelog_id, catelog_name, sort_order, is_private, create_time, update_time 
+                      FROM sites WHERE (is_private = 0 OR ? = 1) 
+                      ORDER BY sort_order ASC, create_time DESC`;
+
+  // 并行执行所有查询
+  const [categoriesResult, settingsResult, sitesResult] = await Promise.all([
+    env.NAV_DB.prepare(categoryQuery).all().catch(e => ({ results: [], error: e })),
+    env.NAV_DB.prepare(`SELECT key, value FROM settings WHERE key IN (${settingsPlaceholders})`).bind(...settingsKeys).all().catch(e => ({ results: [], error: e })),
+    env.NAV_DB.prepare(sitesQuery).bind(includePrivate).all().catch(e => ({ results: [], error: e }))
+  ]);
+
+  // 处理分类结果
+  let categories = categoriesResult.results || [];
+  if (categoriesResult.error) {
+    console.error('Failed to fetch categories:', categoriesResult.error);
   }
 
   const categoryMap = new Map();
@@ -154,7 +214,7 @@ export async function onRequest(context) {
   };
   sortCats(rootCategories);
 
-  // Settings & Wallpaper
+  // 处理设置结果
   let layoutHideDesc = false;
   let layoutHideLinks = false;
   let layoutHideCategory = false;
@@ -203,92 +263,74 @@ export async function onRequest(context) {
   let cardDescSize = '';
   let cardDescColor = '';
 
-  try {
-    const keys = [
-        'layout_hide_desc', 'layout_hide_links', 'layout_hide_category',
-        'layout_hide_title', 'home_title_size', 'home_title_color',
-        'layout_hide_subtitle', 'home_subtitle_size', 'home_subtitle_color',
-        'home_hide_stats', 'home_stats_size', 'home_stats_color',
-        'home_hide_hitokoto', 'home_hitokoto_size', 'home_hitokoto_color',
-        'home_hide_github', 'home_hide_admin',
-        'home_custom_font_url', 'home_title_font', 'home_subtitle_font', 'home_stats_font', 'home_hitokoto_font',
-        'home_site_name', 'home_site_description',
-        'home_search_engine_enabled', 'home_default_category', 'home_remember_last_category',
-        'layout_grid_cols', 'layout_custom_wallpaper', 'layout_menu_layout',
-        'layout_random_wallpaper', 'bing_country',
-        'layout_enable_frosted_glass', 'layout_frosted_glass_intensity',
-        'layout_enable_bg_blur', 'layout_bg_blur_intensity', 'layout_card_style',
-        'layout_card_border_radius',
-        'wallpaper_source', 'wallpaper_cid_360',
-        'card_title_font', 'card_title_size', 'card_title_color',
-        'card_desc_font', 'card_desc_size', 'card_desc_color'
-    ];
-    const placeholders = keys.map(() => '?').join(',');
-    const { results } = await env.NAV_DB.prepare(`SELECT key, value FROM settings WHERE key IN (${placeholders})`).bind(...keys).all();
+  if (settingsResult.results) {
+    settingsResult.results.forEach(row => {
+      if (row.key === 'layout_hide_desc') layoutHideDesc = row.value === 'true';
+      if (row.key === 'layout_hide_links') layoutHideLinks = row.value === 'true';
+      if (row.key === 'layout_hide_category') layoutHideCategory = row.value === 'true';
+      
+      if (row.key === 'layout_hide_title') layoutHideTitle = row.value === 'true';
+      if (row.key === 'home_title_size') homeTitleSize = row.value;
+      if (row.key === 'home_title_color') homeTitleColor = row.value;
 
-    if (results) {
-      results.forEach(row => {
-        if (row.key === 'layout_hide_desc') layoutHideDesc = row.value === 'true';
-        if (row.key === 'layout_hide_links') layoutHideLinks = row.value === 'true';
-        if (row.key === 'layout_hide_category') layoutHideCategory = row.value === 'true';
-        
-        if (row.key === 'layout_hide_title') layoutHideTitle = row.value === 'true';
-        if (row.key === 'home_title_size') homeTitleSize = row.value;
-        if (row.key === 'home_title_color') homeTitleColor = row.value;
+      if (row.key === 'layout_hide_subtitle') layoutHideSubtitle = row.value === 'true';
+      if (row.key === 'home_subtitle_size') homeSubtitleSize = row.value;
+      if (row.key === 'home_subtitle_color') homeSubtitleColor = row.value;
 
-        if (row.key === 'layout_hide_subtitle') layoutHideSubtitle = row.value === 'true';
-        if (row.key === 'home_subtitle_size') homeSubtitleSize = row.value;
-        if (row.key === 'home_subtitle_color') homeSubtitleColor = row.value;
+      if (row.key === 'home_hide_stats') homeHideStats = row.value === 'true';
+      if (row.key === 'home_stats_size') homeStatsSize = row.value;
+      if (row.key === 'home_stats_color') homeStatsColor = row.value;
 
-        if (row.key === 'home_hide_stats') homeHideStats = row.value === 'true';
-        if (row.key === 'home_stats_size') homeStatsSize = row.value;
-        if (row.key === 'home_stats_color') homeStatsColor = row.value;
+      if (row.key === 'home_hide_hitokoto') homeHideHitokoto = row.value === 'true';
+      if (row.key === 'home_hitokoto_size') homeHitokotoSize = row.value;
+      if (row.key === 'home_hitokoto_color') homeHitokotoColor = row.value;
+      
+      if (row.key === 'home_hide_github') homeHideGithub = (row.value === 'true' || row.value === '1');
+      if (row.key === 'home_hide_admin') homeHideAdmin = (row.value === 'true' || row.value === '1');
 
-        if (row.key === 'home_hide_hitokoto') homeHideHitokoto = row.value === 'true';
-        if (row.key === 'home_hitokoto_size') homeHitokotoSize = row.value;
-        if (row.key === 'home_hitokoto_color') homeHitokotoColor = row.value;
-        
-        if (row.key === 'home_hide_github') homeHideGithub = (row.value === 'true' || row.value === '1');
-        if (row.key === 'home_hide_admin') homeHideAdmin = (row.value === 'true' || row.value === '1');
+      if (row.key === 'home_custom_font_url') homeCustomFontUrl = row.value;
+      if (row.key === 'home_title_font') homeTitleFont = row.value;
+      if (row.key === 'home_subtitle_font') homeSubtitleFont = row.value;
+      if (row.key === 'home_stats_font') homeStatsFont = row.value;
+      if (row.key === 'home_hitokoto_font') homeHitokotoFont = row.value;
 
-        if (row.key === 'home_custom_font_url') homeCustomFontUrl = row.value;
-        if (row.key === 'home_title_font') homeTitleFont = row.value;
-        if (row.key === 'home_subtitle_font') homeSubtitleFont = row.value;
-        if (row.key === 'home_stats_font') homeStatsFont = row.value;
-        if (row.key === 'home_hitokoto_font') homeHitokotoFont = row.value;
+      if (row.key === 'home_site_name') homeSiteName = row.value;
+      if (row.key === 'home_site_description') homeSiteDescription = row.value;
 
-        if (row.key === 'home_site_name') homeSiteName = row.value;
-        if (row.key === 'home_site_description') homeSiteDescription = row.value;
+      if (row.key === 'home_search_engine_enabled') homeSearchEngineEnabled = row.value === 'true';
+      if (row.key === 'home_default_category') homeDefaultCategory = row.value;
+      if (row.key === 'home_remember_last_category') homeRememberLastCategory = row.value === 'true';
 
-        if (row.key === 'home_search_engine_enabled') homeSearchEngineEnabled = row.value === 'true';
-        if (row.key === 'home_default_category') homeDefaultCategory = row.value;
-        if (row.key === 'home_remember_last_category') homeRememberLastCategory = row.value === 'true';
+      if (row.key === 'layout_grid_cols') layoutGridCols = row.value;
+      if (row.key === 'layout_custom_wallpaper') layoutCustomWallpaper = row.value;
+      if (row.key === 'layout_menu_layout') layoutMenuLayout = row.value;
+      if (row.key === 'layout_random_wallpaper') layoutRandomWallpaper = row.value === 'true';
+      if (row.key === 'bing_country') bingCountry = row.value;
+      if (row.key === 'layout_enable_frosted_glass') layoutEnableFrostedGlass = row.value === 'true';
+      if (row.key === 'layout_frosted_glass_intensity') layoutFrostedGlassIntensity = row.value;
+      if (row.key === 'layout_enable_bg_blur') layoutEnableBgBlur = row.value === 'true';
+      if (row.key === 'layout_bg_blur_intensity') layoutBgBlurIntensity = row.value;
+      if (row.key === 'layout_card_style') layoutCardStyle = row.value;
+      if (row.key === 'layout_card_border_radius') layoutCardBorderRadius = row.value;
+      if (row.key === 'wallpaper_source') wallpaperSource = row.value;
+      if (row.key === 'wallpaper_cid_360') wallpaperCid360 = row.value;
+      
+      if (row.key === 'card_title_font') cardTitleFont = row.value;
+      if (row.key === 'card_title_size') cardTitleSize = row.value;
+      if (row.key === 'card_title_color') cardTitleColor = row.value;
+      if (row.key === 'card_desc_font') cardDescFont = row.value;
+      if (row.key === 'card_desc_size') cardDescSize = row.value;
+      if (row.key === 'card_desc_color') cardDescColor = row.value;
+    });
+  }
 
-        if (row.key === 'layout_grid_cols') layoutGridCols = row.value;
-        if (row.key === 'layout_custom_wallpaper') layoutCustomWallpaper = row.value;
-        if (row.key === 'layout_menu_layout') layoutMenuLayout = row.value;
-        if (row.key === 'layout_random_wallpaper') layoutRandomWallpaper = row.value === 'true';
-        if (row.key === 'bing_country') bingCountry = row.value;
-        if (row.key === 'layout_enable_frosted_glass') layoutEnableFrostedGlass = row.value === 'true';
-        if (row.key === 'layout_frosted_glass_intensity') layoutFrostedGlassIntensity = row.value;
-        if (row.key === 'layout_enable_bg_blur') layoutEnableBgBlur = row.value === 'true';
-        if (row.key === 'layout_bg_blur_intensity') layoutBgBlurIntensity = row.value;
-        if (row.key === 'layout_card_style') layoutCardStyle = row.value;
-        if (row.key === 'layout_card_border_radius') layoutCardBorderRadius = row.value;
-        if (row.key === 'wallpaper_source') wallpaperSource = row.value;
-        if (row.key === 'wallpaper_cid_360') wallpaperCid360 = row.value;
-        
-        if (row.key === 'card_title_font') cardTitleFont = row.value;
-        if (row.key === 'card_title_size') cardTitleSize = row.value;
-        if (row.key === 'card_title_color') cardTitleColor = row.value;
-        if (row.key === 'card_desc_font') cardDescFont = row.value;
-        if (row.key === 'card_desc_size') cardDescSize = row.value;
-        if (row.key === 'card_desc_color') cardDescColor = row.value;
-      });
-    }
-  } catch (e) {}
+  // 处理站点结果
+  let allSites = sitesResult.results || [];
+  if (sitesResult.error) {
+    return new Response(`Failed to fetch sites: ${sitesResult.error.message}`, { status: 500 });
+  }
 
-  // 2. 确定目标分类
+  // 确定目标分类
   const url = new URL(request.url);
   let requestedCatalogName = (url.searchParams.get('catalog') || '').trim();
   const explicitAll = requestedCatalogName.toLowerCase() === 'all';
@@ -328,138 +370,63 @@ export async function onRequest(context) {
       targetCategoryIds.push(rootId);
   }
 
-    // 3. 查询站点
-    let sites = [];
-    let allSites = [];
+  // 根据分类过滤站点
+  let sites = [];
+  if (targetCategoryIds.length > 0) {
+    sites = allSites.filter(site => targetCategoryIds.includes(site.catelog_id));
+  } else {
+    sites = allSites;
+  }
 
+  // 随机壁纸轮询
+  let nextWallpaperIndex = 0;
+  if (layoutRandomWallpaper) {
     try {
-        let query = `SELECT id, name, url, logo, desc, catelog_id, catelog_name, sort_order, is_private, create_time, update_time FROM sites
-                     WHERE (is_private = 0 OR ? = 1)`;
-        const params = [includePrivate];
+      const cookies = request.headers.get('Cookie') || '';
+      const match = cookies.match(/wallpaper_index=(\d+)/);
+      const currentWallpaperIndex = match ? parseInt(match[1]) : -1;
 
-        query += ` ORDER BY sort_order ASC, create_time DESC`;
-        
-        const { results } = await env.NAV_DB.prepare(query).bind(...params).all();
-        allSites = results || [];
-
-        if (targetCategoryIds.length > 0) {
-            sites = allSites.filter(site => targetCategoryIds.includes(site.catelog_id));
-        } else {
-            sites = allSites;
-        }
-    } catch (e) {
-        return new Response(`Failed to fetch sites: ${e.message}`, { status: 500 });
-    }
-
-  
-
-    // Settings & Wallpaper (Moved up)
-
-    
-
-    let nextWallpaperIndex = 0;
-
-    if (layoutRandomWallpaper) {
-
-        try {
-
-            const cookies = request.headers.get('Cookie') || '';
-
-            const match = cookies.match(/wallpaper_index=(\d+)/);
-
-            const currentWallpaperIndex = match ? parseInt(match[1]) : -1;
-
-  
-
-            if (wallpaperSource === '360') {
-
-               const cid = wallpaperCid360 || '36';
-
-               const apiUrl = `http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&from=360chrome&cid=${cid}&start=0&count=8`;
-
-               const res = await fetch(apiUrl);
-
-               if (res.ok) {
-
-                   const json = await res.json();
-
-                   if (json.errno === "0" && json.data && json.data.length > 0) {
-
-                        nextWallpaperIndex = (currentWallpaperIndex + 1) % json.data.length;
-
-                        const targetItem = json.data[nextWallpaperIndex];
-
-                        let targetUrl = targetItem.url;
-
-                        console.log('360 Wallpaper URL:', targetUrl);
-
-                        if (targetUrl) {
-
-                            // Try to upgrade to HTTPS if possible to avoid mixed content
-
-                            targetUrl = targetUrl.replace('http://', 'https://');
-
-                            layoutCustomWallpaper = targetUrl;
-
-                        }
-
-                   }
-
-               }
-
-            } else {
-
-                // Default to Bing
-
-                let bingUrl = '';
-
-                if (bingCountry === 'spotlight') {
-
-                    bingUrl = 'https://peapix.com/spotlight/feed?n=7';
-
-                } else {
-
-                    bingUrl = `https://peapix.com/bing/feed?n=7&country=${bingCountry}`;
-
-                }
-
-                
-
-                const res = await fetch(bingUrl);
-
-                if (res.ok) {
-
-                    const data = await res.json();
-
-                    if (Array.isArray(data) && data.length > 0) {
-
-                        nextWallpaperIndex = (currentWallpaperIndex + 1) % data.length;
-
-                        const targetItem = data[nextWallpaperIndex];
-
-                        const targetUrl = targetItem.fullUrl || targetItem.url;
-
-                        if (targetUrl) {
-
-                            layoutCustomWallpaper = targetUrl;
-
-                        }
-
-                    }
-
-                }
-
+      if (wallpaperSource === '360') {
+        const cid = wallpaperCid360 || '36';
+        const apiUrl = `http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&from=360chrome&cid=${cid}&start=0&count=8`;
+        const res = await fetch(apiUrl);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.errno === "0" && json.data && json.data.length > 0) {
+            nextWallpaperIndex = (currentWallpaperIndex + 1) % json.data.length;
+            const targetItem = json.data[nextWallpaperIndex];
+            let targetUrl = targetItem.url;
+            if (targetUrl) {
+              targetUrl = targetUrl.replace('http://', 'https://');
+              layoutCustomWallpaper = targetUrl;
             }
-
-        } catch (e) {
-
-            console.error('Random Wallpaper Error:', e);
-
+          }
         }
-
+      } else {
+        // Default to Bing
+        let bingUrl = '';
+        if (bingCountry === 'spotlight') {
+          bingUrl = 'https://peapix.com/spotlight/feed?n=7';
+        } else {
+          bingUrl = `https://peapix.com/bing/feed?n=7&country=${bingCountry}`;
+        }
+        const res = await fetch(bingUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            nextWallpaperIndex = (currentWallpaperIndex + 1) % data.length;
+            const targetItem = data[nextWallpaperIndex];
+            const targetUrl = targetItem.fullUrl || targetItem.url;
+            if (targetUrl) {
+              layoutCustomWallpaper = targetUrl;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Random Wallpaper Error:', e);
     }
-
-  
+  }
 
     const isCustomWallpaper = Boolean(layoutCustomWallpaper);
 
@@ -1476,7 +1443,7 @@ html = html.replace('</body>', '</div></body>');
   });
 
   if (layoutRandomWallpaper) {
-      response.headers.append('Set-Cookie', `wallpaper_index=${nextWallpaperIndex}; Path=/; Max-Age=31536000; SameSite=Lax`);
+    response.headers.append('Set-Cookie', `wallpaper_index=${nextWallpaperIndex}; Path=/; Max-Age=31536000; SameSite=Lax`);
   }
 
   return response;

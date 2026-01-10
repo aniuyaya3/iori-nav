@@ -114,27 +114,43 @@ if (addBookmarkForm) {
 
     if (sortOrder !== '') payload.sort_order = Number(sortOrder);
 
-    fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(res => res.json())
-      .then(data => {
-        if (data.code === 201) {
-          window.showMessage('添加成功', 'success');
-          setTimeout(() => {
-            addBookmarkModal.style.display = 'none';
-            addBookmarkForm.reset();
-            if (typeof window.fetchConfigs === 'function') window.fetchConfigs();
-            // 如果分类被修改了，也刷新分类
-            if (typeof window.fetchCategories === 'function') window.fetchCategories();
-          }, 1000);
-        } else {
-          window.showMessage(data.message, 'error');
-        }
-      }).catch(err => {
-        window.showMessage('网络错误', 'error');
+    // 获取保存按钮并设置加载状态
+    const submitBtn = addBookmarkForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="inline-block animate-spin">⏳</span>';
+
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
+      const data = await res.json();
+      
+      if (data.code === 201) {
+        window.showMessage('添加成功', 'success');
+        setTimeout(() => {
+          addBookmarkModal.style.display = 'none';
+          addBookmarkForm.reset();
+          // 关闭模态框后恢复按钮状态
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          if (typeof window.fetchConfigs === 'function') window.fetchConfigs();
+          if (typeof window.fetchCategories === 'function') window.fetchCategories();
+        }, 1000);
+      } else {
+        window.showMessage(data.message, 'error');
+        // 失败时恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    } catch (err) {
+      window.showMessage('网络错误', 'error');
+      // 失败时恢复按钮状态
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   });
 }
 
@@ -163,22 +179,42 @@ if (editBookmarkForm) {
     const success = await checkAndUpdateCategoryPrivacy(data.catelog_id, data.is_private);
     if (!success) return;
 
-    fetch(`/api/config/${data.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json())
-      .then(data => {
-        if (data.code === 200) {
-          window.showMessage('修改成功', 'success');
-          setTimeout(() => {
-            if (typeof window.fetchConfigs === 'function') window.fetchConfigs();
-            // 如果分类被修改了，也刷新分类
-            if (typeof window.fetchCategories === 'function') window.fetchCategories();
-            editBookmarkModal.style.display = 'none';
-          }, 1000);
-        } else { window.showMessage(data.message, 'error'); }
-      }).catch(err => { window.showMessage('网络错误', 'error'); });
+    // 获取保存按钮并设置加载状态
+    const submitBtn = editBookmarkForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="inline-block animate-spin">⏳</span>';
+
+    try {
+      const res = await fetch(`/api/config/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      
+      if (result.code === 200) {
+        window.showMessage('修改成功', 'success');
+        setTimeout(() => {
+          if (typeof window.fetchConfigs === 'function') window.fetchConfigs();
+          if (typeof window.fetchCategories === 'function') window.fetchCategories();
+          editBookmarkModal.style.display = 'none';
+          // 关闭模态框后恢复按钮状态
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }, 1000);
+      } else { 
+        window.showMessage(result.message, 'error');
+        // 失败时恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    } catch (err) { 
+      window.showMessage('网络错误', 'error');
+      // 失败时恢复按钮状态
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   });
 }
 

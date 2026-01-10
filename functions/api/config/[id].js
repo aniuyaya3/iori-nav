@@ -10,6 +10,12 @@ export async function onRequestGet(context) {
     return errorResponse('config not found', 404);
   }
   const config = results[0];
+  
+  // 私密站点需要认证才能访问
+  if (config.is_private && !(await isAdminAuthenticated(request, env))) {
+    return errorResponse('config not found', 404);
+  }
+  
   return jsonResponse({
     code: 200,
     data: config

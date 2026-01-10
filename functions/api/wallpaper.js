@@ -2,7 +2,7 @@ export async function onRequest(context) {
     const { request } = context;
     const url = new URL(request.url);
     const params = url.searchParams;
-    const source = params.get('source'); // '360'
+    const source = params.get('source'); // '360' or 'bing'
 
     if (source === '360') {
         const action = params.get('action'); // 'categories' or 'list'
@@ -17,6 +17,16 @@ export async function onRequest(context) {
             const apiUrl = `http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&from=360chrome&cid=${cid}&start=${start}&count=${count}`;
             return fetchAndProxy(apiUrl);
         }
+    } else if (source === 'bing') {
+        // Bing / Spotlight 壁纸
+        const country = params.get('country') || '';
+        let bingUrl = '';
+        if (country === 'spotlight') {
+            bingUrl = 'https://peapix.com/spotlight/feed?n=7';
+        } else {
+            bingUrl = `https://peapix.com/bing/feed?n=7&country=${country}`;
+        }
+        return fetchAndProxy(bingUrl);
     }
 
     return new Response(JSON.stringify({ code: 400, message: 'Invalid request' }), {

@@ -189,10 +189,18 @@ document.addEventListener('DOMContentLoaded', function() {
   // ========== 搜索功能 ==========
   const searchInputs = document.querySelectorAll('.search-input-target');
   const sitesGrid = document.getElementById('sitesGrid');
-  let currentSearchEngine = localStorage.getItem('search_engine') || 'local'; // Load from storage or default to local
-
+  
   // Initialize Search Engine UI based on saved preference
   const engineOptions = document.querySelectorAll('.search-engine-option');
+  
+  // 如果外部搜索被禁用（没有搜索引擎选项），强制使用本地搜索
+  let currentSearchEngine = 'local';
+  if (engineOptions.length > 0) {
+    currentSearchEngine = localStorage.getItem('search_engine') || 'local';
+  } else {
+    // 清除之前保存的外部搜索引擎选择
+    localStorage.removeItem('search_engine');
+  }
   
   function updateSearchEngineUI(engine) {
       // Update Active Class

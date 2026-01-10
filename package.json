@@ -1,0 +1,12 @@
+{
+  "name": "iori-nav",
+  "private": true,
+  "description": "书签导航站点 - 基于 Cloudflare 全家桶",
+  "scripts": {
+    "prepare": "husky",
+    "version": "node scripts/update-versions.js"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

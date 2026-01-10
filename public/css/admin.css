@@ -773,6 +773,10 @@ tr:nth-child(even) {
   animation: spin 1s linear infinite;
 }
 
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Modal Messages */
 .modal-message {
   padding: 10px 15px;

@@ -5,6 +5,10 @@ Thumbs.db
 node_modules/
 .wrangler/
 wrangler.toml
+AGENTS.md
+
+# Husky internal files
+.husky/_
 
 # Editor
 .vscode/
