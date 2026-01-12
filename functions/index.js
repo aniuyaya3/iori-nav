@@ -1249,121 +1249,6 @@ export async function onRequest(context) {
   const safeWallpaperUrl = sanitizeUrl(layoutCustomWallpaper);
   const defaultBgColor = '#fdf8f3';
 
-  const tocScript = `
-<script>
-(function () {
-  const scrollOffset = 80
-  const mobileWidth = 800
-  const scrollContainer = '#app-scroll'
-  const ROOT_ID = 'sun-panel-toc-dom'
-
-  const isMobile = () => window.innerWidth < mobileWidth
-
-  function create() {
-    const old = document.getElementById(ROOT_ID)
-    if (old) old.remove()
-
-    const root = document.createElement('div')
-    root.id = ROOT_ID
-    document.body.appendChild(root)
-
-    const style = document.createElement('style')
-    style.textContent = \`
-#${ROOT_ID} .hidden{display:none!important}
-#${ROOT_ID} #toc-btn{
-  position:fixed;top:76px;left:20px;
-  width:46px;height:46px;
-  background:rgba(42,42,42,.6);
-  color:#fff;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:40
-}
-#${ROOT_ID} #toc{
-  position:fixed;left:0;top:0;height:100%;
-  width:40px;padding:10px;
-  display:flex;align-items:center;
-  border-radius:0 20px 20px 0;
-  transition:.3s;z-index:35
-}
-#${ROOT_ID} #toc.expand{
-  width:200px;
-  background:rgba(42,42,42,.9);
-  box-shadow:2px 0 6px rgba(0,0,0,.25)
-}
-#${ROOT_ID} .row{display:flex;align-items:center;cursor:pointer}
-#${ROOT_ID} .bar{width:20px;height:6px;background:#fff;border-radius:4px}
-#${ROOT_ID} .title{margin-left:10px;color:#fff;opacity:0;white-space:nowrap}
-#${ROOT_ID} #toc.expand .title{opacity:1}
-\`
-    root.appendChild(style)
-
-    const btn = document.createElement('div')
-    btn.id = 'toc-btn'
-    btn.innerHTML = '☰'
-    root.appendChild(btn)
-
-    const toc = document.createElement('div')
-    toc.id = 'toc'
-    const box = document.createElement('div')
-    toc.appendChild(box)
-    root.appendChild(toc)
-
-    document.querySelectorAll('[class*="item-group-index-"]').forEach(el => {
-      el.classList.forEach(cls => {
-        if (!cls.startsWith('item-group-index-')) return
-        const row = document.createElement('div')
-        row.className = 'row'
-        row.dataset.cls = cls
-
-        row.innerHTML =
-          '<div class="bar"></div><div class="title">' +
-          (el.querySelector('.group-title')?.textContent || cls) +
-          '</div>'
-
-        row.onclick = () => {
-          const target = document.querySelector('.' + cls)
-          const scroller = document.querySelector(scrollContainer)
-          if (target && scroller) {
-            scroller.scrollTo({
-              top: target.offsetTop - scrollOffset,
-              behavior: 'smooth'
-            })
-          }
-        }
-
-        box.appendChild(row)
-      })
-    })
-
-    const show = () => { toc.classList.add('expand'); toc.classList.remove('hidden') }
-    const hide = () => { toc.classList.remove('expand'); if (isMobile()) toc.classList.add('hidden') }
-
-    btn.onclick = () => toc.classList.contains('expand') ? hide() : show()
-    toc.onmouseenter = show
-    toc.onmouseleave = hide
-
-    const resize = () => {
-      if (isMobile()) {
-        btn.classList.remove('hidden')
-        toc.classList.add('hidden')
-      } else {
-        btn.classList.add('hidden')
-        toc.classList.remove('hidden')
-      }
-    }
-    resize()
-    window.addEventListener('resize', resize)
-  }
-
-  const t = setInterval(() => {
-    if (document.querySelector('[class*="item-group-index-"]')) {
-      create()
-      clearInterval(t)
-    }
-  }, 300)
-})()
-</script>
-`
   // 统一构建背景层逻辑 - 采用 img 标签方案以解决移动端缩放问题
   let bgLayerHtml = '';
 
@@ -1443,7 +1328,7 @@ html = html.replace(
    <div id="app-scroll">`
 );
 
-html = html.replace('</body>', '</div>${tocScript}</body>');
+html = html.replace('</body>', '</div></body>');
   
   // Inject Card CSS Variables
   const cardRadius = parseInt(layoutCardBorderRadius) || 12;
