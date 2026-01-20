@@ -18,12 +18,24 @@ window.categoriesData = [];
 window.categoriesTree = [];
 
 // Global Utility Functions
-window.showMessage = function(text, type = 'info') {
+window.showMessage = function(text, type = 'info', cacheCleared = false) {
   if (!messageDiv) return;
   messageDiv.innerText = text;
   messageDiv.style.display = 'block';
   
   if (type === 'success') {
+    // Check if this is a data mutation that requires cache refresh
+    // Filter out things like "Copied to clipboard" if any
+    if (text !== '已复制到剪贴板' && !text.includes('刷新成功')) {
+        if (cacheCleared) {
+            // Backend cleared cache automatically, reset frontend stale state
+            window.resetCacheStale();
+        } else {
+            // Backend didn't clear cache (manual mode), mark as stale
+            window.markCacheStale();
+        }
+    }
+    
     messageDiv.style.backgroundColor = '#d4edda';
     messageDiv.style.color = '#155724';
     messageDiv.style.border = '1px solid #c3e6cb';
@@ -701,7 +713,7 @@ window.performDelete = function(id) {
   }).then(res => res.json())
     .then(data => {
       if (data.code === 200) {
-        window.showMessage('删除成功', 'success');
+        window.showMessage('删除成功', 'success', data.cacheCleared);
         fetchConfigs();
       } else {
         window.showMessage(data.message || '删除失败', 'error');
@@ -784,6 +796,7 @@ function saveSortOrder() {
     Promise.all(updates)
       .then(() => {
         window.showMessage('排序已保存', 'success');
+        // Note: Cache is marked stale by showMessage
         // Update local memory data
         cards.forEach((card, index) => {
            const id = card.dataset.id;
@@ -871,6 +884,10 @@ function setupBookmarkPrivacyLinkage(selectId, checkboxId) {
 
 // 初始化监听器
 document.addEventListener('DOMContentLoaded', () => {
+   if(localStorage.getItem('nav_cache_stale') === 'true') {
+       window.markCacheStale();
+   }
+
    setupBookmarkPrivacyLinkage('addBookmarkCatelog', 'addBookmarkIsPrivate');
    setupBookmarkPrivacyLinkage('editBookmarkCatelog', 'editBookmarkIsPrivate');
 

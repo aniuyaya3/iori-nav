@@ -4,9 +4,12 @@
   "description": "书签导航站点 - 基于 Cloudflare 全家桶",
   "scripts": {
     "prepare": "husky",
-    "version": "node scripts/update-versions.js"
+    "version": "node scripts/update-versions.js",
+    "build:css": "npx tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.min.css --minify",
+    "dev:css": "npx tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.min.css --watch"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "tailwindcss": "^3.4.17"
   }
 }

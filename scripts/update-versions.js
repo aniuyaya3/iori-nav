@@ -22,12 +22,15 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const HTML_FILES = {
   'public/index.html': [
     { file: 'public/css/style.css', pattern: /\/css\/style\.css\?v=[a-zA-Z0-9]+/ },
+    { file: 'public/css/tailwind.min.css', pattern: /\/css\/tailwind\.min\.css\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/main.js', pattern: /\/js\/main\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/favicon.svg', pattern: /\/favicon\.svg\?v=[a-zA-Z0-9]+/ },
   ],
   'public/admin/index.html': [
     { file: 'public/css/admin.css', pattern: /\/css\/admin\.css\?v=[a-zA-Z0-9]+/ },
     { file: 'public/css/admin-dropdown.css', pattern: /\/css\/admin-dropdown\.css\?v=[a-zA-Z0-9]+/ },
+    { file: 'public/css/tailwind.min.css', pattern: /\/css\/tailwind\.min\.css\?v=[a-zA-Z0-9]+/ },
+    { file: 'public/js/admin-cache.js', pattern: /\/js\/admin-cache\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin.js', pattern: /\/js\/admin\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-categories.js', pattern: /\/js\/admin-categories\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-bookmarks.js', pattern: /\/js\/admin-bookmarks\.js\?v=[a-zA-Z0-9]+/ },

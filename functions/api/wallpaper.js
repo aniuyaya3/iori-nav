@@ -1,55 +1,43 @@
 export async function onRequest(context) {
-    const { request } = context;
-    const url = new URL(request.url);
-    const params = url.searchParams;
-    const source = params.get('source'); // '360' or 'bing'
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const source = url.searchParams.get('source') || 'bing';
+  const cid = url.searchParams.get('cid') || '36';
+  const region = url.searchParams.get('region') || '';
 
-    if (source === '360') {
-        const action = params.get('action'); // 'categories' or 'list'
+  let imageUrl = '';
+
+  try {
+    if (source === 'bing') {
+      const bingUrl = region === 'spotlight'
+        ? 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN' // Fallback for spotlight simple fetch
+        : 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
         
-        if (action === 'categories') {
-            const apiUrl = 'http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAllCategoriesV2&from=360chrome';
-            return fetchAndProxy(apiUrl);
-        } else if (action === 'list') {
-            const cid = params.get('cid') || '36';
-            const start = params.get('start') || '0';
-            const count = params.get('count') || '8';
-            const apiUrl = `http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&from=360chrome&cid=${cid}&start=${start}&count=${count}`;
-            return fetchAndProxy(apiUrl);
-        }
-    } else if (source === 'bing') {
-        // Bing / Spotlight 壁纸
-        const country = params.get('country') || '';
-        let bingUrl = '';
-        if (country === 'spotlight') {
-            bingUrl = 'https://peapix.com/spotlight/feed?n=7';
-        } else {
-            bingUrl = `https://peapix.com/bing/feed?n=7&country=${country}`;
-        }
-        return fetchAndProxy(bingUrl);
+      if (region === 'spotlight') {
+         // Spotlight logic
+         const spotRes = await fetch('https://arc.msn.com/v3/Delivery/Cache?pid=209567&fmt=json&rafb=0&ua=WindowsShellClient%2F0&disphorzres=1920&dispvertres=1080&lo=80217&pl=zh-CN&lc=zh-CN&ctry=cn&time=' + new Date().toISOString());
+         if (spotRes.ok) {
+             const data = await spotRes.json();
+             const item = JSON.parse(data.batchrsp.items[0].item);
+             imageUrl = item.ad.image_fullscreen_001_landscape.u;
+         }
+      } else {
+         const res = await fetch(bingUrl);
+         const data = await res.json();
+         imageUrl = 'https://cn.bing.com' + data.images[0].url;
+      }
+    } else if (source === '360') {
+      const res = await fetch(`http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByOrder&order=create_time&start=0&count=1&cid=${cid}`);
+      const data = await res.json();
+      imageUrl = data.data[0].url;
     }
+  } catch (e) {
+      imageUrl = ''; 
+  }
 
-    return new Response(JSON.stringify({ code: 400, message: 'Invalid request' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-    });
-}
-
-async function fetchAndProxy(url) {
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        return new Response(JSON.stringify({ code: 200, data: data }), {
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*' // Or restrictive if needed
-            }
-        });
-    } catch (error) {
-        return new Response(JSON.stringify({ code: 500, message: error.message }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+  // Fallback to random fallback if empty (optional)
+  
+  return new Response(JSON.stringify({ url: imageUrl }), {
+      headers: { 'Content-Type': 'application/json' }
+  });
 }
