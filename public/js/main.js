@@ -551,8 +551,9 @@ document.addEventListener('DOMContentLoaded', function() {
                  localStorage.setItem('iori_last_category', catalogId);
                  setCookie('iori_last_category', catalogId, 365);
              } else {
-                 localStorage.removeItem('iori_last_category'); // "All" or empty
-                 setCookie('iori_last_category', '', -1);
+                 // Explicitly save "all" state
+                 localStorage.setItem('iori_last_category', 'all');
+                 setCookie('iori_last_category', 'all', 365);
              }
         }
 
@@ -749,6 +750,15 @@ document.addEventListener('DOMContentLoaded', function() {
                moreBtn.classList.add('inactive');
           }
       }
+
+      // 4. Highlight "All" button explicitly if no catalogId provided (means "All")
+      if (!catalogId) {
+          const allBtn = document.querySelector('a[href="?catalog=all"]');
+          if (allBtn) {
+              allBtn.classList.remove('inactive');
+              allBtn.classList.add('active', 'nav-item-active');
+          }
+      }
       
       // Update Sidebar (Vertical Menu)
       const sidebar = document.getElementById('sidebar');
@@ -801,8 +811,26 @@ document.addEventListener('DOMContentLoaded', function() {
       const hasCatalogParam = urlParams.has('catalog');
       
       if (config.rememberLastCategory && !hasCatalogParam) {
-          const lastId = localStorage.getItem('iori_last_category');
+          let lastId = localStorage.getItem('iori_last_category');
+          
+          // Fallback to Cookie if LocalStorage is missing (e.g. cleared or not synced)
+          if (!lastId) {
+              const match = document.cookie.match(/iori_last_category=(all|\d+)/);
+              if (match) {
+                  lastId = match[1];
+              }
+          }
+
           if (lastId) {
+              if (lastId === 'all') {
+                  // Explicitly restore "All Categories" state
+                  const allSites = window.IORI_SITES || [];
+                  renderSites(allSites);
+                  updateHeading(null, null, allSites.length);
+                  updateNavigationState(null);
+                  return;
+              }
+
               // Try to find the category link in DOM to get correct Name and Href
               const link = document.querySelector(`a[data-id="${lastId}"]`);
               
@@ -855,10 +883,67 @@ document.addEventListener('DOMContentLoaded', function() {
           const transition = document.startViewTransition(() => {
               updateTheme();
           });
-
+          
           transition.finished.finally(() => {
               document.documentElement.classList.remove('theme-animating');
           });
       });
   }
+
+  // ========== Random Wallpaper Logic (Client-side) ==========
+  (async function() {
+      const config = window.IORI_LAYOUT_CONFIG || {};
+      if (!config.randomWallpaper) return;
+
+      const bgContainer = document.getElementById('fixed-background');
+      if (!bgContainer) return;
+
+      const img = bgContainer.querySelector('img');
+      // Get current index from cookie
+      const match = document.cookie.match(/wallpaper_index=(\d+)/);
+      const currentIndex = match ? parseInt(match[1]) : -1;
+
+      try {
+          const params = new URLSearchParams({
+              source: config.wallpaperSource || 'bing',
+              cid: config.wallpaperCid360 || '36',
+              country: config.bingCountry || '',
+              index: currentIndex
+          });
+
+          const res = await fetch(`/api/wallpaper?${params.toString()}`);
+          if (res.ok) {
+              const data = await res.json();
+              if (data.code === 200 && data.data && data.data.url) {
+                  const newUrl = data.data.url;
+                  const newIndex = data.data.index;
+
+                  // Preload image
+                  const newImg = new Image();
+                  newImg.src = newUrl;
+                  newImg.onload = () => {
+                      if (img) {
+                          img.style.transition = 'opacity 0.5s ease-in-out';
+                          img.style.opacity = '0';
+                          setTimeout(() => {
+                              img.src = newUrl;
+                              img.style.opacity = '1';
+                          }, 500);
+                      } else {
+                          // If no img tag exists (e.g. initial solid color), create one
+                          bgContainer.innerHTML = `<img src="${newUrl}" alt="" style="width: 100%; height: 100%; object-fit: cover; filter: blur(${config.enableBgBlur ? config.bgBlurIntensity : 0}px); transform: scale(1.02); opacity: 0; transition: opacity 0.5s ease-in-out;" />`;
+                          setTimeout(() => {
+                              bgContainer.querySelector('img').style.opacity = '1';
+                          }, 50);
+                      }
+                      
+                      // Update cookie for next rotation
+                      document.cookie = `wallpaper_index=${newIndex}; path=/; max-age=31536000; SameSite=Lax`;
+                  };
+              }
+          }
+      } catch (e) {
+          console.error('Failed to fetch random wallpaper:', e);
+      }
+  })();
 });

@@ -123,20 +123,32 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const isHomePage = url.pathname === '/' && !url.search;
   
+  // Cookie Bridge: Check for stale cache cookie
+  const cookies = request.headers.get('Cookie') || '';
+  const hasStaleCookie = cookies.includes('iori_cache_stale=1');
+  let shouldClearCookie = false;
+
   if (isHomePage) {
-    const cacheKey = isAuthenticated ? 'home_html_private' : 'home_html_public';
-    try {
-      const cachedHtml = await env.NAV_AUTH.get(cacheKey);
-      if (cachedHtml) {
-        return new Response(cachedHtml, {
-          headers: { 
-            'Content-Type': 'text/html; charset=utf-8',
-            'X-Cache': 'HIT'
+    if (isAuthenticated && hasStaleCookie) {
+        // Detected stale cookie + Admin -> Clear Cache & Skip Read
+        await env.NAV_AUTH.delete('home_html_private');
+        await env.NAV_AUTH.delete('home_html_public');
+        shouldClearCookie = true;
+    } else {
+        const cacheKey = isAuthenticated ? 'home_html_private' : 'home_html_public';
+        try {
+          const cachedHtml = await env.NAV_AUTH.get(cacheKey);
+          if (cachedHtml) {
+            return new Response(cachedHtml, {
+              headers: { 
+                'Content-Type': 'text/html; charset=utf-8',
+                'X-Cache': 'HIT'
+              }
+            });
           }
-        });
-      }
-    } catch (e) {
-      console.warn('Failed to read home cache:', e);
+        } catch (e) {
+          console.warn('Failed to read home cache:', e);
+        }
     }
   }
 
@@ -333,15 +345,23 @@ export async function onRequest(context) {
   if (!requestedCatalogName && !explicitAll) {
       // 优先级：Cookie (如果开启记忆) > 数据库默认设置
       let cookieCatId = null;
+      let isCookieAll = false;
       if (homeRememberLastCategory) {
           const cookies = request.headers.get('Cookie') || '';
-          const match = cookies.match(/iori_last_category=(\d+)/);
+          const match = cookies.match(/iori_last_category=(all|\d+)/);
           if (match) {
-              cookieCatId = parseInt(match[1]);
+              if (match[1] === 'all') {
+                  isCookieAll = true;
+              } else {
+                  cookieCatId = parseInt(match[1]);
+              }
           }
       }
 
-      if (cookieCatId && categoryMap.has(cookieCatId)) {
+      if (isCookieAll) {
+          // Explicitly set to 'all' to bypass default category logic
+          requestedCatalogName = 'all';
+      } else if (cookieCatId && categoryMap.has(cookieCatId)) {
           // 通过 ID 反查 Name (因为后续逻辑基于 Name)
           requestedCatalogName = categoryMap.get(cookieCatId).catelog;
       } else {
@@ -1473,17 +1493,13 @@ html = html.replace('</body>', '</div></body>');
     headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
 
-  if (layoutRandomWallpaper) {
-    // 强制禁用缓存，设置头部
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    
-    response.headers.append('Set-Cookie', `wallpaper_index=${nextWallpaperIndex}; Path=/; Max-Age=31536000; SameSite=Lax`);
+  if (shouldClearCookie) {
+      // Clear the stale cookie
+      response.headers.append('Set-Cookie', 'iori_cache_stale=; Path=/; Max-Age=0; SameSite=Lax');
   }
 
-  // 写入缓存 (仅当未开启随机壁纸时)
-  if (isHomePage && !layoutRandomWallpaper) {
+  // 写入缓存 (只要不是管理员强制刷新或 Stale 状态，都应该写入缓存，包括随机壁纸开启的情况)
+  if (isHomePage) {
     const cacheKey = isAuthenticated ? 'home_html_private' : 'home_html_public';
     context.waitUntil(env.NAV_AUTH.put(cacheKey, html));
   }

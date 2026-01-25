@@ -18,7 +18,7 @@ async function createAdminSession(env, ttl = 86400) {
 
 function buildSessionCookie(token, options = {}) {
   const maxAge = options.maxAge !== undefined ? options.maxAge : 86400;
-  return `admin_session=${token}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Strict`;
+  return `admin_session=${token}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
 function renderLoginPage(message = '') {

@@ -1,43 +1,64 @@
-export async function onRequest(context) {
-  const { request, env } = context;
+
+import { jsonResponse, errorResponse } from '../_middleware';
+
+export async function onRequestGet(context) {
+  const { request } = context;
   const url = new URL(request.url);
   const source = url.searchParams.get('source') || 'bing';
   const cid = url.searchParams.get('cid') || '36';
-  const region = url.searchParams.get('region') || '';
-
-  let imageUrl = '';
+  const country = url.searchParams.get('country') || '';
+  const indexStr = url.searchParams.get('index') || '-1';
+  let currentIndex = parseInt(indexStr);
+  if (isNaN(currentIndex)) currentIndex = -1;
 
   try {
-    if (source === 'bing') {
-      const bingUrl = region === 'spotlight'
-        ? 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN' // Fallback for spotlight simple fetch
-        : 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
-        
-      if (region === 'spotlight') {
-         // Spotlight logic
-         const spotRes = await fetch('https://arc.msn.com/v3/Delivery/Cache?pid=209567&fmt=json&rafb=0&ua=WindowsShellClient%2F0&disphorzres=1920&dispvertres=1080&lo=80217&pl=zh-CN&lc=zh-CN&ctry=cn&time=' + new Date().toISOString());
-         if (spotRes.ok) {
-             const data = await spotRes.json();
-             const item = JSON.parse(data.batchrsp.items[0].item);
-             imageUrl = item.ad.image_fullscreen_001_landscape.u;
-         }
-      } else {
-         const res = await fetch(bingUrl);
-         const data = await res.json();
-         imageUrl = 'https://cn.bing.com' + data.images[0].url;
+    let targetUrl = '';
+    let nextIndex = 0;
+
+    if (source === '360') {
+      const apiUrl = `http://cdn.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&from=360chrome&cid=${cid}&start=0&count=8`;
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.errno === "0" && json.data && json.data.length > 0) {
+          nextIndex = (currentIndex + 1) % json.data.length;
+          const targetItem = json.data[nextIndex];
+          if (targetItem.url) {
+            targetUrl = targetItem.url.replace('http://', 'https://');
+          }
+        }
       }
-    } else if (source === '360') {
-      const res = await fetch(`http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByOrder&order=create_time&start=0&count=1&cid=${cid}`);
-      const data = await res.json();
-      imageUrl = data.data[0].url;
+    } else {
+      // Default to Bing
+      let bingUrl = '';
+      if (country === 'spotlight') {
+        bingUrl = 'https://peapix.com/spotlight/feed?n=7';
+      } else {
+        bingUrl = `https://peapix.com/bing/feed?n=7&country=${country}`;
+      }
+      const res = await fetch(bingUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          nextIndex = (currentIndex + 1) % data.length;
+          const targetItem = data[nextIndex];
+          targetUrl = targetItem.fullUrl || targetItem.url;
+        }
+      }
+    }
+
+    if (targetUrl) {
+      return jsonResponse({
+        code: 200,
+        data: {
+          url: targetUrl,
+          index: nextIndex
+        }
+      });
+    } else {
+      return errorResponse('Failed to fetch wallpaper', 500);
     }
   } catch (e) {
-      imageUrl = ''; 
+    return errorResponse(`Error: ${e.message}`, 500);
   }
-
-  // Fallback to random fallback if empty (optional)
-  
-  return new Response(JSON.stringify({ url: imageUrl }), {
-      headers: { 'Content-Type': 'application/json' }
-  });
 }

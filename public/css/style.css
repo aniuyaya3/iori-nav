@@ -285,34 +285,133 @@ header {
 .site-card:not(.style-2):hover .site-title { transform: scale(1.2); transition-delay: 0.1s; }
 
 /* 风格二 (垂直布局) */
-.site-card.style-2 .flex.items-start,
-@media (max-width: 400px) { .site-card .flex.items-start { flex-direction: column; align-items: center; text-align: center; } }
+.site-card.style-2 .flex.items-start {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
 
-.site-card.style-2 .site-icon,
-@media (max-width: 400px) { .site-card .site-icon { margin-right: 0; margin-bottom: 0.5rem; width: 3rem; height: 3rem; transition: transform 0.3s ease; } }
+@media (max-width: 400px) {
+    .site-card .flex.items-start {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+}
+
+.site-card.style-2 .site-icon {
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+    width: 3rem;
+    height: 3rem;
+    transition: transform 0.3s ease;
+}
+
+@media (max-width: 400px) {
+    .site-card .site-icon {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+        width: 3rem;
+        height: 3rem;
+        transition: transform 0.3s ease;
+    }
+}
 
 .site-card.style-2:hover .site-icon { transform: scale(1.1); }
 
-.site-card.style-2 .site-icon img, .site-card.style-2 .site-icon div,
-@media (max-width: 400px) { .site-card .site-icon img, .site-card .site-icon div { margin: 0 auto; } }
+.site-card.style-2 .site-icon img, .site-card.style-2 .site-icon div {
+    margin: 0 auto;
+}
 
-.site-card.style-2 .site-title,
-@media (max-width: 400px) { .site-card .site-title { text-align: center; margin-bottom: 0.25rem; display: block; width: 100%; transform-origin: center !important; } }
+@media (max-width: 400px) {
+    .site-card .site-icon img, .site-card .site-icon div {
+        margin: 0 auto;
+    }
+}
 
-.site-card.style-2 .flex-1,
-@media (max-width: 400px) { .site-card .flex-1 { width: 100%; display: flex; flex-direction: column; align-items: center; } }
+.site-card.style-2 .site-title {
+    text-align: center;
+    margin-bottom: 0.25rem;
+    display: block;
+    width: 100%;
+    transform-origin: center !important;
+}
 
-.site-card.style-2 .inline-flex,
-@media (max-width: 400px) { .site-card .inline-flex { margin-top: 0.25rem; margin-bottom: 0.5rem; } }
+@media (max-width: 400px) {
+    .site-card .site-title {
+        text-align: center;
+        margin-bottom: 0.25rem;
+        display: block;
+        width: 100%;
+        transform-origin: center !important;
+    }
+}
 
-.site-card.style-2 p,
-@media (max-width: 400px) { .site-card p { text-align: center; margin-top: 0.5rem; } }
+.site-card.style-2 .flex-1 {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-.site-card.style-2 .mt-3.flex,
-@media (max-width: 400px) { .site-card .mt-3.flex { margin-top: auto; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.05); } }
+@media (max-width: 400px) {
+    .site-card .flex-1 {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+}
 
-.dark .site-card.style-2 .mt-3.flex,
-@media (max-width: 400px) { .dark .site-card .mt-3.flex { border-top: 1px solid rgba(255,255,255,0.1); } }
+.site-card.style-2 .inline-flex {
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 400px) {
+    .site-card .inline-flex {
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+.site-card.style-2 p {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 400px) {
+    .site-card p {
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+}
+
+.site-card.style-2 .mt-3.flex {
+    margin-top: auto;
+    justify-content: space-between;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+@media (max-width: 400px) {
+    .site-card .mt-3.flex {
+        margin-top: auto;
+        justify-content: space-between;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(0,0,0,0.05);
+    }
+}
+
+.dark .site-card.style-2 .mt-3.flex {
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+@media (max-width: 400px) {
+    .dark .site-card .mt-3.flex {
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+}
 
 /* 复制提示 */
 @keyframes fadeInOut {
