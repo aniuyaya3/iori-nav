@@ -1,5 +1,7 @@
 // functions/admin/login.js
 
+import { timingSafeEqual, checkLoginRateLimit, recordLoginFailure, clearLoginFailures } from '../_middleware';
+
 function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -21,10 +23,14 @@ function buildSessionCookie(token, options = {}) {
   return `admin_session=${token}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
+// 暴力破解防护配置
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 600; // 10 分钟
+
 function renderLoginPage(message = '') {
   const hasError = Boolean(message);
   const safeMessage = hasError ? escapeHTML(message) : '';
-  
+
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -90,32 +96,18 @@ function renderLoginPage(message = '') {
     <a href="/" class="back-link">返回首页</a>
   </div>
   <script>
-    // 调试信息
-    console.log('Login page loaded');
-    
     const durationSelect = document.getElementById('duration');
-    // Restore selection
     const savedDuration = localStorage.getItem('login_duration');
     if (savedDuration) {
         durationSelect.value = savedDuration;
     }
-
-    // 检测表单提交
-    document.querySelector('form').addEventListener('submit', function(e) {
-      console.log('Form submitting...');
-      const name = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      
-      // Save selection
+    document.querySelector('form').addEventListener('submit', function() {
       localStorage.setItem('login_duration', durationSelect.value);
-
-      console.log('Username:', name);
-      console.log('Password length:', password.length);
     });
   </script>
 </body>
 </html>`;
-  
+
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
@@ -123,53 +115,53 @@ function renderLoginPage(message = '') {
 
 // GET: 显示登录页面
 export async function onRequestGet(context) {
-  const { request, env } = context;
+  const { request } = context;
   const url = new URL(request.url);
   const error = url.searchParams.get('error');
-  
-  console.log('GET /admin/login');
-  
+
   return renderLoginPage(error || '');
 }
 
 // POST: 处理登录提交
 export async function onRequestPost(context) {
   const { request, env } = context;
-  
-  console.log('POST /admin/login');
-  
+
   try {
+    // 获取客户端 IP
+    const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+
+    // 暴力破解防护：检查 IP 是否被锁定
+    const { locked } = await checkLoginRateLimit(env, ip, MAX_LOGIN_ATTEMPTS, LOCKOUT_SECONDS);
+    if (locked) {
+      return renderLoginPage('登录尝试过于频繁，请 10 分钟后再试');
+    }
+
     const formData = await request.formData();
     const name = (formData.get('username') || '').trim();
     const password = (formData.get('password') || '').trim();
     const durationDays = parseInt(formData.get('duration') || '1', 10);
     const ttl = durationDays * 86400;
 
-    console.log('Login attempt - Username:', name, 'Duration:', durationDays, 'days');
-
     if (!name || !password) {
-      console.log('Missing credentials');
       return renderLoginPage('请输入用户名和密码');
     }
 
     const storedUsername = await env.NAV_AUTH.get('admin_username');
     const storedPassword = await env.NAV_AUTH.get('admin_password');
 
-    console.log('Stored username exists:', Boolean(storedUsername));
-    console.log('Stored password exists:', Boolean(storedPassword));
-
     if (!storedUsername || !storedPassword) {
       console.error('Admin credentials not found in KV');
       return renderLoginPage('系统配置错误，请联系管理员');
     }
 
-    const isValid = name === storedUsername && password === storedPassword;
+    // 使用恒定时间比较，防止时序攻击
+    const isValid = timingSafeEqual(name, storedUsername) && timingSafeEqual(password, storedPassword);
 
     if (isValid) {
-      console.log('Login successful, creating session');
+      // 登录成功：清除失败计数
+      await clearLoginFailures(env, ip);
       const token = await createAdminSession(env, ttl);
-      console.log('Session token created:', token.substring(0, 8) + '...');
-      
+
       return new Response(null, {
         status: 302,
         headers: {
@@ -179,10 +171,11 @@ export async function onRequestPost(context) {
       });
     }
 
-    console.log('Invalid credentials');
+    // 登录失败：记录失败次数
+    await recordLoginFailure(env, ip, MAX_LOGIN_ATTEMPTS, LOCKOUT_SECONDS);
     return renderLoginPage('账号或密码错误，请重试');
   } catch (e) {
     console.error('Login error:', e);
-    return renderLoginPage('登录处理出错: ' + e.message);
+    return renderLoginPage('登录处理出错，请稍后重试');
   }
 }
