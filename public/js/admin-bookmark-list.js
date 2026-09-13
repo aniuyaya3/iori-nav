@@ -59,6 +59,17 @@
     if (nextPageBtn) nextPageBtn.disabled = currentPage >= Math.ceil(totalItems / pageSize);
   }
 
+  // 以服务端回传的 pageSize 为准：接口有上限（匿名 200 / 管理员 10000），
+  // 若被截断，页数与拖拽排序起点必须按实际值算，否则条目不可达、sort_order 写错
+  function syncPageSize(serverPageSize) {
+    const size = Number(serverPageSize);
+    if (!Number.isFinite(size) || size <= 0 || size === pageSize) return;
+    pageSize = size;
+    if (pageSizeSelect && [...pageSizeSelect.options].some(o => o.value === String(size))) {
+      pageSizeSelect.value = String(size);
+    }
+  }
+
   function renderLoadingState() {
     if (!configGrid) return;
     configGrid.innerHTML = `
@@ -90,6 +101,7 @@
         if (data.code === 200) {
           totalItems = data.total;
           currentPage = data.page;
+          syncPageSize(data.pageSize);
           if (totalPagesSpan) totalPagesSpan.innerText = Math.ceil(totalItems / pageSize);
           if (currentPageSpan) currentPageSpan.innerText = currentPage;
           allConfigs = data.data;
