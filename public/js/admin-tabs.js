@@ -20,6 +20,8 @@
           window.fetchCategories?.();
         } else if (tab === 'pending') {
           window.fetchPendingConfigs?.();
+        } else if (tab === 'graph') {
+          window.AdminGraph?.load?.(true);
         }
       });
     });

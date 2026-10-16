@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="/css/admin-feedback.css?v=15b4dada" />
   <link rel="stylesheet" href="/css/admin-dropdown.css?v=9efddb85" />
   <link rel="stylesheet" href="/css/tailwind.min.css?v=38e0a016">
+  <link rel="stylesheet" href="/css/admin-graph.css?v=06182517" />
 </head>
 
 <body>
@@ -1485,6 +1486,7 @@
         <button class="tab-button active" data-tab="config">书签列表</button>
         <button class="tab-button" data-tab="pending">待审核列表</button>
         <button class="tab-button" data-tab="categories">分类列表</button>
+        <button class="tab-button" data-tab="graph">关系图谱</button>
       </div>
 
       <div id="config" class="tab-content active">
@@ -1584,6 +1586,67 @@
               <option value="100">100条/页</option>
               <option value="10000" selected>全部</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="graph" class="tab-content">
+        <div id="graphContainer" class="graph-container">
+          <canvas id="graphCanvas" class="graph-canvas" tabindex="0" aria-label="书签关系图谱"></canvas>
+          <div id="graphLoading" class="graph-loading">正在构建图谱…</div>
+          <div id="graphTooltip" class="graph-tooltip hidden"></div>
+          <div id="graphStats" class="graph-stats" aria-live="polite">
+            <div class="graph-stats-scope">
+              <span class="graph-stats-eyebrow">当前范围</span>
+              <strong id="graphStatsScope" class="graph-stats-scope-name">全部图谱</strong>
+            </div>
+            <span class="graph-stats-divider" aria-hidden="true"></span>
+            <div class="graph-stat graph-stat-category">
+              <span class="graph-stat-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h6l2 3h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 9h18"/></svg>
+              </span>
+              <strong id="graphCategoryCount" class="graph-stat-value">0</strong>
+              <span class="graph-stat-label">分类</span>
+            </div>
+            <div class="graph-stat graph-stat-bookmark">
+              <span class="graph-stat-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></svg>
+              </span>
+              <strong id="graphBookmarkCount" class="graph-stat-value">0</strong>
+              <span class="graph-stat-label">书签</span>
+            </div>
+            <span id="graphStatsNote" class="graph-stats-note hidden"></span>
+          </div>
+          <div class="graph-legend" aria-label="分类层级图例">
+            <span class="graph-legend-title">层级</span>
+            <span class="graph-legend-item"><i class="graph-legend-dot level-1" aria-hidden="true"></i>1级</span>
+            <span class="graph-legend-item"><i class="graph-legend-dot level-2" aria-hidden="true"></i>2级</span>
+            <span class="graph-legend-item"><i class="graph-legend-dot level-3" aria-hidden="true"></i>3级</span>
+            <span class="graph-legend-item"><i class="graph-legend-dot level-4" aria-hidden="true"></i>4级</span>
+            <span class="graph-legend-item"><i class="graph-legend-dot level-5" aria-hidden="true"></i>5级+</span>
+          </div>
+          <div class="graph-toolbar" role="toolbar" aria-label="图谱工具栏">
+            <button id="graphUp" type="button" title="返回上一级" class="graph-toolbar-btn graph-nav-button hidden" aria-label="返回上一级">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            </button>
+            <button id="graphBack" type="button" title="返回完整图谱" class="graph-toolbar-btn graph-nav-button hidden" aria-label="返回完整图谱">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="m12 7-7 9"/><path d="m12 7 7 9"/><path d="M7 18h10"/></svg>
+            </button>
+            <span class="graph-toolbar-sep hidden" id="graphNavSep"></span>
+            <button id="graphZoomOut" type="button" title="缩小" class="graph-toolbar-btn" aria-label="缩小">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            </button>
+            <button id="graphFit" type="button" title="适配视图" class="graph-toolbar-btn" aria-label="适配视图">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button id="graphZoomIn" type="button" title="放大" class="graph-toolbar-btn" aria-label="放大">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <span class="graph-toolbar-sep"></span>
+            <button id="graphFullscreen" type="button" title="全屏" class="graph-toolbar-btn" aria-label="全屏">
+              <svg class="graph-fullscreen-enter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              <svg class="graph-fullscreen-exit-icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M16 3v3a2 2 0 0 0 2 2h3"/><path d="M8 21v-3a2 2 0 0 0-2-2H3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -1706,7 +1769,9 @@
   <script src="/js/admin-cache.js?v=7b8faa7b"></script>
   <script src="/js/admin-bookmark-list.js?v=7e93e4d3"></script>
   <script src="/js/admin-pending.js?v=2482c2ea"></script>
-  <script src="/js/admin-tabs.js?v=fd9a0d73"></script>
+  <script src="/js/home-graph-engine.js?v=805c7dfa"></script>
+  <script src="/js/admin-graph.js?v=d130034e"></script>
+  <script src="/js/admin-tabs.js?v=a52bd6f3"></script>
   <script src="/js/admin-bookmark-privacy.js?v=306f5fdb"></script>
   <script src="/js/admin.js?v=39f7ce60"></script>
   <script src="/js/admin-categories.js?v=aa436f47"></script>

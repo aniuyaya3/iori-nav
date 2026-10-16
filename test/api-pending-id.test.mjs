@@ -109,6 +109,9 @@ function createApprovalDb({ failBatch = false } = {}) {
           throw new Error(`Unexpected first() SQL: ${sql}`);
         },
         async run() {
+          // markHomeCacheDirty also advances the graph cache generation in D1;
+          // that bookkeeping write is not part of the approval transaction.
+          if (sql.includes('INSERT OR REPLACE INTO settings')) return { success: true, meta: {} };
           calls.push({ kind: 'run', sql });
           return { success: true, meta: {} };
         },

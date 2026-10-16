@@ -172,7 +172,10 @@ test('POST /api/settings accepts the admin settings payload', async () => {
     },
   });
   const body = await response.json();
-  const settingWrites = db.runCalls.filter(call => call.sql.includes('INSERT OR REPLACE INTO settings'));
+  const settingWrites = db.runCalls.filter(call => (
+    call.sql.includes('INSERT OR REPLACE INTO settings')
+    && call.params[0] !== 'graph_cache_generation'
+  ));
   const savedKeys = settingWrites.map(call => call.params[0]);
 
   assert.equal(response.status, 200, body.message);
@@ -248,7 +251,10 @@ test('POST /api/settings skips unchanged writes but still invalidates caches', a
     },
   });
   const body = await response.json();
-  const settingWrites = db.runCalls.filter(call => call.sql.includes('INSERT OR REPLACE INTO settings'));
+  const settingWrites = db.runCalls.filter(call => (
+    call.sql.includes('INSERT OR REPLACE INTO settings')
+    && call.params[0] !== 'graph_cache_generation'
+  ));
 
   assert.equal(response.status, 200, body.message);
   assert.equal(body.code, 200);

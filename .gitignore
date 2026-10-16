@@ -6,6 +6,8 @@ node_modules/
 .agent-teams/
 .wrangler/
 wrangler.toml
+test-data.sql
+clear-data.sql
 
 # Husky internal files
 .husky/_
