@@ -28,10 +28,7 @@
       logoClass: 'w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-700',
       siteIconClass: 'site-icon flex-shrink-0 mr-4 transition-all duration-300',
     };
-    const cardConfigSets = window.IORI_CARD_CONFIGS || {
-      desktop: window.IORI_CARD_CONFIG || defaultCardConfig,
-      mobile: window.IORI_CARD_CONFIG || defaultCardConfig,
-    };
+    const cardConfigSets = window.IORI_CARD_CONFIGS || {};
     const cardAnimationTypes = ['slideUp', 'radial', 'fadeIn', 'slideLeft', 'slideRight', 'convergeIn', 'flipIn'];
     const cardAnimationClasses = cardAnimationTypes.map(type => `card-anim-${type}`);
     const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -49,7 +46,7 @@
     function getActiveCardConfig() {
       const device = getCardDevice();
       activeCardDevice = device;
-      return cardConfigSets[device] || cardConfigSets.desktop || window.IORI_CARD_CONFIG || defaultCardConfig;
+      return cardConfigSets[device] || cardConfigSets.desktop || defaultCardConfig;
     }
 
     function getSitesForCatalog(catalogId) {
@@ -95,7 +92,24 @@
       return cardAnimationTypes.includes(configured) ? configured : 'radial';
     }
 
+    // 读 gridTemplateColumns 会强制同步样式解析。此前每张卡要读 2 次
+    // （prepareCardAnimation 与 getCardAnimationDelay 各一次），而循环里每张卡都在改
+    // class/style，于是 N 张卡触发 2N 次强制样式重算（1000 张卡实测 2000 次）。
+    // 列数在一次批量渲染内不变，缓存后每批只读 1 次。
+    let cachedAnimationCols = 0;
+
+    function invalidateAnimationColumnCount() {
+      cachedAnimationCols = 0;
+    }
+
     function getAnimationColumnCount() {
+      if (!cachedAnimationCols) {
+        cachedAnimationCols = computeAnimationColumnCount();
+      }
+      return cachedAnimationCols;
+    }
+
+    function computeAnimationColumnCount() {
       const templateColumns = sitesGrid ? window.getComputedStyle(sitesGrid).gridTemplateColumns : '';
       if (templateColumns && templateColumns !== 'none') {
         const renderedCols = templateColumns.trim().split(/\s+/).filter(Boolean).length;
@@ -234,6 +248,8 @@
     function renderSites(sites) {
       if (!sitesGrid) return;
 
+      // 网格列数可能随设备/布局切换而变化，每批渲染前失效一次
+      invalidateAnimationColumnCount();
       applyCardGridColumns();
       Home.clearSearchCardCache?.();
 
@@ -308,6 +324,9 @@
       mobileCardQuery?.addEventListener('change', () => {
         syncCardConfigForViewport();
       });
+
+      // 视口跨断点会改变 CSS 网格列数，缓存必须失效
+      window.addEventListener('resize', invalidateAnimationColumnCount);
 
       if (getCardDevice() === 'mobile') {
         syncCardConfigForViewport({ force: true });
